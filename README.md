@@ -107,6 +107,12 @@ The registry mirrors Citecue's serving list: OpenAI (GPTBot, OAI-SearchBot, Chat
 
 Detection is UA-based, matching the rest of the Citecue delivery layer. A UA spoofer could see the optimized version of your pages — content derived from your own public site, so this is a documented, low-severity non-issue.
 
+## Security & trust model
+
+- The module's settings (API key, base URL, **Allowed API Hosts**) live under the `Citecue_Delivery::config` admin ACL. An admin with that permission is already trusted with the org API key — the same boundary that lets them read or rotate it — so restricting *where* the key is sent is defense-in-depth, not a boundary against that admin.
+- Credentialed delivery requests are constrained to the **Allowed API Hosts** list (default `app.citecue.com`), over **HTTPS only**, and IP-literal hosts in private/loopback/link-local/reserved ranges are always rejected — even if allowlisted. Pointing the base URL at a new host is therefore an explicit, allowlisted decision, enforced at save time, when resolving stored config, and once more in the API client before the Bearer key is sent. The Magento curl client does not follow redirects, so a trusted host can't 3xx the request to an internal address.
+- **Accepted residuals** (a deliberate trade-off — the allowlist was chosen over wiping the stored key on every base-URL edit): an admin who *deliberately* allowlists a host they control can direct the key there, and DNS rebinding of an explicitly-allowlisted hostname to a private address is not blocked (hostnames aren't resolved on the request path). Both require a trusted `Citecue_Delivery::config` admin to first allowlist the host. If your threat model needs a harder boundary, gate the Citecue configuration section behind a dedicated, more restricted admin role.
+
 ## Repository layout
 
 ```text
