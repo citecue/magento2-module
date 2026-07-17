@@ -128,12 +128,17 @@ class Client
      */
     public function fetchConfig(?string $apiKeyOverride = null, ?string $baseUrlOverride = null, $storeId = null): array
     {
-        $base = $baseUrlOverride !== null && trim($baseUrlOverride) !== ''
-            ? rtrim(trim($baseUrlOverride), '/')
+        $hasKeyOverride = $apiKeyOverride !== null && trim($apiKeyOverride) !== '';
+        $hasBaseOverride = $baseUrlOverride !== null && trim($baseUrlOverride) !== '';
+
+        // SSRF guard: never send the stored API key to an operator-typed base
+        // URL. A typed-in base URL is only honored together with an explicit
+        // key override (the admin is testing a brand-new endpoint + key pair);
+        // otherwise fall back to the saved, validated base URL and saved key.
+        $base = ($hasBaseOverride && $hasKeyOverride)
+            ? rtrim(trim((string)$baseUrlOverride), '/')
             : $this->config->getBaseUrl($storeId);
-        $apiKey = $apiKeyOverride !== null && trim($apiKeyOverride) !== ''
-            ? trim($apiKeyOverride)
-            : $this->config->getApiKey($storeId);
+        $apiKey = $hasKeyOverride ? trim((string)$apiKeyOverride) : $this->config->getApiKey($storeId);
 
         $result = $this->request($base . '/api/delivery/v2/config', $this->authHeaders($apiKey), $storeId);
         if ($result['status'] !== 200 || $result['body'] === null) {
@@ -213,6 +218,17 @@ class Client
      */
     private function request(string $endpoint, array $headers, $storeId = null): array
     {
+        // Credentials (the Bearer key) must only ever travel over TLS, and an
+        // https-only rule blocks the common SSRF sinks (file://, http:// to an
+        // internal/metadata host). A non-https endpoint is refused before the
+        // key is sent — treated as a transport failure so the caller fails open.
+        if (!$this->isHttpsUrl($endpoint)) {
+            if ($this->config->isDebugLogging($storeId)) {
+                $this->logger->debug('Citecue: refusing non-HTTPS delivery endpoint ' . $this->redact($endpoint));
+            }
+            return ['status' => 0, 'body' => null, 'etag' => null, 'mode' => null];
+        }
+
         $curl = $this->curlFactory->create();
         try {
             $curl->setTimeout($this->config->getTimeout($storeId));
@@ -264,6 +280,18 @@ class Client
     {
         $pos = strpos($endpoint, '?');
         return $pos === false ? $endpoint : substr($endpoint, 0, $pos);
+    }
+
+    /**
+     * Whether a URL uses the https scheme (case-insensitive).
+     *
+     * @param string $url
+     * @return bool
+     */
+    private function isHttpsUrl(string $url): bool
+    {
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        return is_string($scheme) && strtolower($scheme) === 'https';
     }
 
     /**

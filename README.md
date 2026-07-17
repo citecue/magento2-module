@@ -4,7 +4,7 @@ Magento 2 middleware that serves **Citecue AI-optimized (auto-fixed) versions of
 
 It is the Magento counterpart of Citecue's Cloudflare Worker snippet and WordPress plugin, built on the **authenticated delivery API v2** (`/api/delivery/v2/*`, `X-Citecue-Channel: magento`).
 
-```
+```text
                                 ┌────────────────────────────┐
  AI crawler (GPTBot, …)  ──────►│  Citecue_Delivery           │──── optimized? ────► serve Citecue version
                                 │  (front-controller          │        │ (200/304, ETag-cached)
@@ -108,14 +108,15 @@ Detection is UA-based, matching the rest of the Citecue delivery layer. A UA spo
 
 ## Repository layout
 
-```
+```text
 Model/Config.php                 typed config reader (store-scoped)
 Model/CrawlerMatcher.php         pure UA matcher (longest-token-wins, upstream parity)
 Model/CrawlerRegistry.php        bundled registry + cached daily feed
 Model/PathMatcher.php            pure excluded-path matcher (segment-boundary)
-Model/Api/Client.php             delivery API v2/v1 HTTP client (never throws)
+Model/Api/Client.php             delivery API v2/v1 HTTP client (never throws, https-only)
 Model/DeliveryService.php        middleware brain: caching, ETag, breaker, fail-open
 Model/Cache/Type.php             "citecue_delivery" cache type
+Model/Config/Backend/BaseUrl.php https-only validation of the API base URL
 Plugin/FrontControllerPlugin.php outermost dispatch interception (serve or proceed)
 Plugin/PageCacheKernelPlugin.php FPC bypass for detected crawlers
 Controller/Router.php            /llms.txt router (Magento_Robots pattern)

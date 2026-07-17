@@ -49,7 +49,8 @@
                 <field id="base_url" translate="label comment" type="text" sortOrder="10"
                        showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                     <label>Citecue API Base URL</label>
-                    <comment>Only change this if Citecue support tells you to.</comment>
+                    <backend_model>Citecue\Delivery\Model\Config\Backend\BaseUrl</backend_model>
+                    <comment>Only change this if Citecue support tells you to. Must be a valid https:// URL.</comment>
                 </field>
                 <field id="timeout" translate="label comment" type="text" sortOrder="20"
                        showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">

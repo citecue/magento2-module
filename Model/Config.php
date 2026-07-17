@@ -139,7 +139,12 @@ class Config
             ScopeInterface::SCOPE_STORE,
             $storeId
         ));
-        if ($url === '') {
+        // Defense in depth: the save-time backend model already enforces https,
+        // but a value injected by other means (direct DB / setup:config:set)
+        // must never downgrade credentialed requests off TLS — fall back to the
+        // trusted default instead.
+        $scheme = $url !== '' ? parse_url($url, PHP_URL_SCHEME) : null;
+        if ($url === '' || !is_string($scheme) || strtolower($scheme) !== 'https') {
             $url = self::DEFAULT_BASE_URL;
         }
         return rtrim($url, '/');

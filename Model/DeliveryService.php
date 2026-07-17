@@ -170,7 +170,7 @@ class DeliveryService
         $localTtl = $this->config->getLocalCacheTtl($storeId);
         if ($entry !== null && $localTtl > 0 && (time() - $entry['stored_at']) < $localTtl) {
             if ($debug) {
-                $this->logger->debug('Citecue: serving locally cached page to ' . $crawler['id'] . ' for ' . $url);
+                $this->logger->debug('Citecue: serving locally cached page to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -196,7 +196,7 @@ class DeliveryService
             ];
             $this->saveEntry($cacheKey, $entry);
             if ($debug) {
-                $this->logger->debug('Citecue: serving optimized page (' . $entry['mode'] . ') to ' . $crawler['id'] . ' for ' . $url);
+                $this->logger->debug('Citecue: serving optimized page (' . $entry['mode'] . ') to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -205,7 +205,7 @@ class DeliveryService
             $entry['stored_at'] = time();
             $this->saveEntry($cacheKey, $entry);
             if ($debug) {
-                $this->logger->debug('Citecue: 304 revalidated, serving cached page to ' . $crawler['id'] . ' for ' . $url);
+                $this->logger->debug('Citecue: 304 revalidated, serving cached page to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -227,7 +227,7 @@ class DeliveryService
         $this->cache->save('1', $downKey, [], self::DOWN_TTL);
         if ($entry !== null) {
             if ($debug) {
-                $this->logger->debug('Citecue: API unavailable, serving stale cached page to ' . $crawler['id'] . ' for ' . $url);
+                $this->logger->debug('Citecue: API unavailable, serving stale cached page to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -305,6 +305,25 @@ class DeliveryService
     private function downFlagKey(string $publicKey): string
     {
         return self::DOWN_FLAG_PREFIX . hash('sha256', $publicKey);
+    }
+
+    /**
+     * Strips the query string (and everything after) from a URL for logging,
+     * keeping only scheme://host/path. Crawler URLs can carry query values
+     * that shouldn't be persisted verbatim in var/log. The full raw URL is
+     * still sent to the API — only the log representation is redacted.
+     *
+     * @param string $url
+     * @return string
+     */
+    private function redactUrl(string $url): string
+    {
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['host'])) {
+            return '[redacted-url]';
+        }
+        $scheme = isset($parts['scheme']) ? $parts['scheme'] . '://' : '';
+        return $scheme . $parts['host'] . ($parts['path'] ?? '');
     }
 
     /**

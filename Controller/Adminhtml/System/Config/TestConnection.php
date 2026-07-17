@@ -145,7 +145,14 @@ class TestConnection extends Action implements HttpPostActionInterface
     {
         $storeParam = $this->getRequest()->getParam('store');
         if ($storeParam !== null && $storeParam !== '') {
-            return (int)$storeParam;
+            // The scope switcher may pass a store *code* (e.g. "default"), not
+            // an id — resolve through StoreManager so casting "default" to 0
+            // can't silently read the wrong scope.
+            try {
+                return (int)$this->storeManager->getStore($storeParam)->getId();
+            } catch (\Throwable $e) {
+                return null;
+            }
         }
         $websiteParam = $this->getRequest()->getParam('website');
         if ($websiteParam !== null && $websiteParam !== '') {

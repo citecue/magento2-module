@@ -151,7 +151,12 @@ class CrawlerRegistry
             'crawlers' => $sanitized,
             'fetched_at' => time(),
         ]);
-        $this->cache->save($payload, self::CACHE_KEY, [], self::CACHE_TTL);
+        // save() returns false on a backend write failure; don't report a
+        // successful refresh (and don't drop the memoized list) if the new
+        // registry never actually persisted.
+        if (!$this->cache->save($payload, self::CACHE_KEY, [], self::CACHE_TTL)) {
+            return false;
+        }
         $this->crawlers = null;
         return true;
     }
@@ -180,7 +185,10 @@ class CrawlerRegistry
             $result[] = [
                 'id' => $id,
                 'token' => $token,
-                'fetchesPages' => !empty($row['fetchesPages']),
+                // Strict boolean: a malformed remote row (e.g. the string
+                // "false") must not flip a non-serving token into a serving
+                // one — only a literal true opts a crawler into being served.
+                'fetchesPages' => ($row['fetchesPages'] ?? false) === true,
             ];
         }
         return $result !== [] ? $result : null;
