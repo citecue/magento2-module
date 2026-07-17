@@ -140,6 +140,15 @@ class Client
             : $this->config->getBaseUrl($storeId);
         $apiKey = $hasKeyOverride ? trim((string)$apiKeyOverride) : $this->config->getApiKey($storeId);
 
+        if (!$this->config->isAllowedBaseUrl($base, $storeId)) {
+            return [
+                'status' => 0,
+                'projects' => null,
+                'error' => 'The Citecue API Base URL host is not on the Allowed API Hosts list. '
+                    . 'Add it under Advanced → Allowed API Hosts and save first.',
+            ];
+        }
+
         $result = $this->request($base . '/api/delivery/v2/config', $this->authHeaders($apiKey), $storeId);
         if ($result['status'] !== 200 || $result['body'] === null) {
             return ['status' => $result['status'], 'projects' => null, 'error' => $this->describeFailure($result['status'])];
@@ -218,13 +227,15 @@ class Client
      */
     private function request(string $endpoint, array $headers, $storeId = null): array
     {
-        // Credentials (the Bearer key) must only ever travel over TLS, and an
-        // https-only rule blocks the common SSRF sinks (file://, http:// to an
-        // internal/metadata host). A non-https endpoint is refused before the
-        // key is sent — treated as a transport failure so the caller fails open.
-        if (!$this->isHttpsUrl($endpoint)) {
+        // Single choke point: credentialed requests may only target an https,
+        // allowlisted host (private/loopback/link-local IPs always rejected).
+        // Anything else is refused before the Bearer key is sent — treated as a
+        // transport failure so the caller fails open. The hot path always
+        // resolves an allowlisted host via Config::getBaseUrl; this also guards
+        // the Test Connection base-URL override.
+        if (!$this->config->isAllowedBaseUrl($endpoint, $storeId)) {
             if ($this->config->isDebugLogging($storeId)) {
-                $this->logger->debug('Citecue: refusing non-HTTPS delivery endpoint ' . $this->redact($endpoint));
+                $this->logger->debug('Citecue: refusing delivery endpoint not on the allowed API host list: ' . $this->redact($endpoint));
             }
             return ['status' => 0, 'body' => null, 'etag' => null, 'mode' => null];
         }
@@ -280,18 +291,6 @@ class Client
     {
         $pos = strpos($endpoint, '?');
         return $pos === false ? $endpoint : substr($endpoint, 0, $pos);
-    }
-
-    /**
-     * Whether a URL uses the https scheme (case-insensitive).
-     *
-     * @param string $url
-     * @return bool
-     */
-    private function isHttpsUrl(string $url): bool
-    {
-        $scheme = parse_url($url, PHP_URL_SCHEME);
-        return is_string($scheme) && strtolower($scheme) === 'https';
     }
 
     /**

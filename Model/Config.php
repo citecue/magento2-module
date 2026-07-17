@@ -23,6 +23,7 @@ class Config
     public const XML_PATH_PUBLIC_KEY = 'citecue_delivery/general/public_key';
     public const XML_PATH_SERVE_LLMS_TXT = 'citecue_delivery/general/serve_llms_txt';
     public const XML_PATH_BASE_URL = 'citecue_delivery/advanced/base_url';
+    public const XML_PATH_ALLOWED_HOSTS = 'citecue_delivery/advanced/allowed_hosts';
     public const XML_PATH_TIMEOUT = 'citecue_delivery/advanced/timeout';
     public const XML_PATH_CONNECT_TIMEOUT = 'citecue_delivery/advanced/connect_timeout';
     public const XML_PATH_LOCAL_CACHE_TTL = 'citecue_delivery/advanced/local_cache_ttl';
@@ -139,15 +140,132 @@ class Config
             ScopeInterface::SCOPE_STORE,
             $storeId
         ));
-        // Defense in depth: the save-time backend model already enforces https,
-        // but a value injected by other means (direct DB / setup:config:set)
-        // must never downgrade credentialed requests off TLS — fall back to the
-        // trusted default instead.
-        $scheme = $url !== '' ? parse_url($url, PHP_URL_SCHEME) : null;
-        if ($url === '' || !is_string($scheme) || strtolower($scheme) !== 'https') {
+        // Defense in depth: the save-time backend model already enforces the
+        // allowlist, but a value injected by other means (direct DB /
+        // setup:config:set) must never send credentialed requests to a
+        // non-https or non-allowlisted host — fall back to the trusted default.
+        if ($url === '' || !$this->isAllowedBaseUrl($url, $storeId)) {
             $url = self::DEFAULT_BASE_URL;
         }
         return rtrim($url, '/');
+    }
+
+    /**
+     * The admin-configured trusted API hosts (the built-in default host is
+     * always included). Credentialed delivery requests may only target these
+     * hosts, so a config editor can't redirect the org API key to an internal
+     * or attacker-controlled endpoint.
+     *
+     * @param int|string|null $storeId
+     * @return string[]
+     */
+    public function getAllowedHosts($storeId = null): array
+    {
+        return self::normalizeHostList((string)$this->scopeConfig->getValue(
+            self::XML_PATH_ALLOWED_HOSTS,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+    }
+
+    /**
+     * Whether a base URL is a valid, allowed target for credentialed requests
+     * at the given scope.
+     *
+     * @param string $url
+     * @param int|string|null $storeId
+     * @return bool
+     */
+    public function isAllowedBaseUrl(string $url, $storeId = null): bool
+    {
+        return self::isEndpointAllowed($url, $this->getAllowedHosts($storeId));
+    }
+
+    /**
+     * Parses a newline/comma-separated host list into a normalized, unique,
+     * lowercased set of hostnames. The built-in default host is always present
+     * so the module never locks itself out of its own default endpoint. Each
+     * entry may be a bare host or a full URL (the host is extracted). Pure —
+     * unit-tested and reused by the base-URL backend validator.
+     *
+     * @param string $raw
+     * @return string[]
+     */
+    public static function normalizeHostList(string $raw): array
+    {
+        $hosts = [];
+        $default = parse_url(self::DEFAULT_BASE_URL, PHP_URL_HOST);
+        if (is_string($default) && $default !== '') {
+            $hosts[strtolower($default)] = true;
+        }
+        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $line) {
+            $host = self::extractHost(trim($line));
+            if ($host !== '') {
+                $hosts[$host] = true;
+            }
+        }
+        return array_keys($hosts);
+    }
+
+    /**
+     * Whether an absolute URL is a valid, allowed delivery endpoint: it must be
+     * https, its host must be in $allowedHosts, and IP-literal hosts in a
+     * private/loopback/link-local/reserved range are always rejected (blocking
+     * the cloud metadata endpoint, localhost-by-IP, etc.) even if allowlisted.
+     * Pure.
+     *
+     * @param string $url
+     * @param string[] $allowedHosts
+     * @return bool
+     */
+    public static function isEndpointAllowed(string $url, array $allowedHosts): bool
+    {
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        if (!is_string($scheme) || strtolower($scheme) !== 'https') {
+            return false;
+        }
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return false;
+        }
+        $host = strtolower($host);
+        // Hard-block private/reserved IP-literal hosts regardless of the
+        // allowlist. Bracketed IPv6 literals are unwrapped first.
+        $ipCandidate = trim($host, '[]');
+        if (filter_var($ipCandidate, FILTER_VALIDATE_IP) !== false
+            && filter_var($ipCandidate, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false
+        ) {
+            return false;
+        }
+        return in_array($host, $allowedHosts, true);
+    }
+
+    /**
+     * Extracts a normalized hostname from a bare host or a full URL entry.
+     *
+     * @param string $entry
+     * @return string
+     */
+    private static function extractHost(string $entry): string
+    {
+        if ($entry === '') {
+            return '';
+        }
+        $host = strpos($entry, '//') !== false ? (parse_url($entry, PHP_URL_HOST) ?: '') : $entry;
+        $host = strtolower(trim((string)$host));
+        // Drop an accidental trailing path.
+        $slash = strpos($host, '/');
+        if ($slash !== false) {
+            $host = substr($host, 0, $slash);
+        }
+        // Strip a host:port suffix, but not a bare/bracketed IPv6 literal.
+        if ($host !== '' && $host[0] !== '[' && filter_var($host, FILTER_VALIDATE_IP) === false) {
+            $colon = strrpos($host, ':');
+            if ($colon !== false) {
+                $host = substr($host, 0, $colon);
+            }
+        }
+        return $host;
     }
 
     /**

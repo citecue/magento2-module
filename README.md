@@ -84,7 +84,8 @@ Requires Magento 2.4.4+ (PHP 8.1–8.4).
 | **Project Public Key** | The public key of the Citecue project matching this store's domain. Click **Test Connection** to list your projects and pick the key. |
 | **Test Connection** | Calls `GET /api/delivery/v2/config` with the entered key and lists your projects (domain, public key, delivery enabled, llms.txt) with a one-click "Use this key". |
 | **Serve llms.txt** | Serve `/llms.txt` at the store's domain root. Also requires the project's "Serve llms.txt" toggle in Citecue. |
-| **Citecue API Base URL** | Default `https://app.citecue.com`. Only change on Citecue support's instruction. |
+| **Allowed API Hosts** | One host per line. The base URL and every credentialed request are restricted to these hosts (`app.citecue.com` is always allowed); private/loopback/link-local addresses are always rejected. Add a Citecue staging/self-hosted host here before pointing the base URL at it. |
+| **Citecue API Base URL** | Default `https://app.citecue.com`. Only change on Citecue support's instruction; must be https and on the Allowed API Hosts list. |
 | **Request / Connect Timeout** | Delivery API budget; on timeout the crawler gets the normal page. |
 | **Local Cache TTL** | `0` (default) = revalidate with the API on every crawler request — exact Agent Traffic analytics, cheap 304s. Set to e.g. `60`–`300` to serve repeat crawler hits from the local cache without any API round trip. |
 | **Excluded Path Prefixes** | One per line; matched on full path segments (`checkout` excludes `/checkout/cart` but not `/checkout-guide`). Defaults cover checkout, customer, cart, API and asset paths. |
@@ -116,7 +117,7 @@ Model/PathMatcher.php            pure excluded-path matcher (segment-boundary)
 Model/Api/Client.php             delivery API v2/v1 HTTP client (never throws, https-only)
 Model/DeliveryService.php        middleware brain: caching, ETag, breaker, fail-open
 Model/Cache/Type.php             "citecue_delivery" cache type
-Model/Config/Backend/BaseUrl.php https-only validation of the API base URL
+Model/Config/Backend/BaseUrl.php https + allowed-host validation of the API base URL
 Plugin/FrontControllerPlugin.php outermost dispatch interception (serve or proceed)
 Plugin/PageCacheKernelPlugin.php FPC bypass for detected crawlers
 Controller/Router.php            /llms.txt router (Magento_Robots pattern)

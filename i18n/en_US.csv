@@ -3,6 +3,7 @@
 "Project Public Key","Project Public Key"
 "Serve llms.txt","Serve llms.txt"
 "Citecue API Base URL","Citecue API Base URL"
+"Allowed API Hosts","Allowed API Hosts"
 "Request Timeout (seconds)","Request Timeout (seconds)"
 "Connect Timeout (seconds)","Connect Timeout (seconds)"
 "Local Cache TTL (seconds)","Local Cache TTL (seconds)"

@@ -11,6 +11,7 @@
             </general>
             <advanced>
                 <base_url>https://app.citecue.com</base_url>
+                <allowed_hosts>app.citecue.com</allowed_hosts>
                 <timeout>3</timeout>
                 <connect_timeout>2</connect_timeout>
                 <!-- 0 = revalidate against the API on every crawler request (keeps
