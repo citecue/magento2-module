@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!--
+        The delivery middleware intercepts the front controller BEFORE
+        Magento_PageCache's builtin FPC plugin (sortOrder -100 makes it the
+        outermost around plugin), so an AI crawler is answered with the
+        Citecue-optimized version even when the page has a full-page-cache
+        entry. When the request is not from an AI crawler (or Citecue has no
+        optimized version), $proceed() runs and Magento behaves exactly as
+        without this module.
+    -->
+    <type name="Magento\Framework\App\FrontControllerInterface">
+        <plugin name="citecue_delivery_front_controller"
+                type="Citecue\Delivery\Plugin\FrontControllerPlugin"
+                sortOrder="-100"/>
+    </type>
+    <!--
+        Belt-and-braces for the builtin FPC: even if another module reorders
+        the front-controller plugins, a full-page-cache HIT must never answer
+        an AI crawler (it would bypass the middleware). Forcing Kernel::load()
+        to miss for detected AI crawlers guarantees the request reaches the
+        middleware / a fresh render. Crawler traffic volume is low, so the
+        extra renders are negligible; the middleware's own served responses
+        are Cache-Control: private/no-store and are never stored in FPC.
+    -->
+    <type name="Magento\Framework\App\PageCache\Kernel">
+        <plugin name="citecue_delivery_fpc_crawler_bypass"
+                type="Citecue\Delivery\Plugin\PageCacheKernelPlugin"/>
+    </type>
+    <!--
+        llms.txt router (mirrors the Magento_Robots router pattern): matches
+        the literal /llms.txt path and forwards to citecue/llms/index.
+    -->
+    <type name="Magento\Framework\App\RouterList">
+        <arguments>
+            <argument name="routerList" xsi:type="array">
+                <item name="citecue_llms_txt" xsi:type="array">
+                    <item name="class" xsi:type="string">Citecue\Delivery\Controller\Router</item>
+                    <item name="disable" xsi:type="boolean">false</item>
+                    <item name="sortOrder" xsi:type="string">15</item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
+</config>

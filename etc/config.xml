@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <citecue_delivery>
+            <general>
+                <enabled>0</enabled>
+                <api_key/>
+                <public_key/>
+                <serve_llms_txt>1</serve_llms_txt>
+            </general>
+            <advanced>
+                <base_url>https://app.citecue.com</base_url>
+                <timeout>3</timeout>
+                <connect_timeout>2</connect_timeout>
+                <!-- 0 = revalidate against the API on every crawler request (keeps
+                     Citecue's Agent Traffic analytics exact; 304s are cheap).
+                     Set to e.g. 60-300 to serve from the local cache without an API
+                     round trip for that many seconds (burst protection). -->
+                <local_cache_ttl>0</local_cache_ttl>
+                <debug_logging>0</debug_logging>
+                <excluded_paths>admin
+checkout
+customer
+cart
+wishlist
+sales
+paypal
+payment
+downloadable
+sendfriend
+newsletter
+review/customer
+robots.txt
+sitemap.xml
+favicon.ico
+.well-known
+rest
+graphql
+soap
+static
+media</excluded_paths>
+            </advanced>
+        </citecue_delivery>
+    </default>
+</config>

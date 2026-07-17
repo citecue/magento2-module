@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Cache/etc/cache.xsd">
+    <type name="citecue_delivery" translate="label,description" instance="Citecue\Delivery\Model\Cache\Type">
+        <label>Citecue Delivery</label>
+        <description>AI-optimized page versions, llms.txt and the AI-crawler registry fetched from the Citecue delivery API.</description>
+    </type>
+</config>

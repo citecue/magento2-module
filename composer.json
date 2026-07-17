@@ -1,0 +1,32 @@
+{
+    "name": "citecue/module-delivery",
+    "description": "Citecue AI delivery middleware for Magento 2 — serves AI-optimized (auto-fixed) page versions to AI bots and crawlers via the Citecue delivery API, and passes every other visitor through untouched.",
+    "type": "magento2-module",
+    "license": "MIT",
+    "version": "1.0.0",
+    "keywords": [
+        "magento2",
+        "citecue",
+        "ai",
+        "llm",
+        "crawlers",
+        "geo",
+        "aeo"
+    ],
+    "require": {
+        "php": "~8.1.0||~8.2.0||~8.3.0||~8.4.0",
+        "magento/framework": ">=103.0.4",
+        "magento/module-store": "*",
+        "magento/module-backend": "*",
+        "magento/module-config": "*",
+        "magento/module-page-cache": "*"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Citecue\\Delivery\\": ""
+        }
+    }
+}
