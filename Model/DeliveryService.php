@@ -40,7 +40,7 @@ class DeliveryService
     private const PAGE_CACHE_PREFIX = 'citecue_page_';
     private const MISS_CACHE_PREFIX = 'citecue_miss_';
     private const LLMS_CACHE_PREFIX = 'citecue_llms_';
-    private const DOWN_FLAG_KEY = 'citecue_api_down';
+    private const DOWN_FLAG_PREFIX = 'citecue_api_down_';
 
     private const ENTRY_TTL = 86400;      // stale ceiling for locally cached bodies
     private const MISS_TTL = 60;          // mirrors the API's miss Cache-Control max-age
@@ -162,6 +162,7 @@ class DeliveryService
         $url = $this->currentUrl($request);
         $publicKey = $this->config->getPublicKey($storeId);
         $cacheKey = self::PAGE_CACHE_PREFIX . hash('sha256', $publicKey . '|' . $url);
+        $downKey = $this->downFlagKey($publicKey);
         $entry = $this->loadEntry($cacheKey);
         $debug = $this->config->isDebugLogging($storeId);
 
@@ -180,7 +181,7 @@ class DeliveryService
         }
 
         // Circuit breaker open — stale copy if we have one, passthrough if not.
-        if ($this->cache->load(self::DOWN_FLAG_KEY)) {
+        if ($this->cache->load($downKey)) {
             return $entry !== null ? $this->pageResult($entry, $crawler['id']) : null;
         }
 
@@ -218,12 +219,12 @@ class DeliveryService
 
         if ($result['status'] === 401) {
             $this->logger->warning('Citecue: the delivery API rejected the configured API key (401 invalid_key).');
-            $this->cache->save('1', self::DOWN_FLAG_KEY, [], self::DOWN_TTL);
+            $this->cache->save('1', $downKey, [], self::DOWN_TTL);
             return null;
         }
 
         // Transport error (0) or 5xx: trip the breaker, serve stale if possible.
-        $this->cache->save('1', self::DOWN_FLAG_KEY, [], self::DOWN_TTL);
+        $this->cache->save('1', $downKey, [], self::DOWN_TTL);
         if ($entry !== null) {
             if ($debug) {
                 $this->logger->debug('Citecue: API unavailable, serving stale cached page to ' . $crawler['id'] . ' for ' . $url);
@@ -248,6 +249,7 @@ class DeliveryService
         $publicKey = $this->config->getPublicKey($storeId);
         $cacheKey = self::LLMS_CACHE_PREFIX . hash('sha256', $publicKey);
         $missKey = self::MISS_CACHE_PREFIX . hash('sha256', $publicKey . '|llms.txt');
+        $downKey = $this->downFlagKey($publicKey);
         $entry = $this->loadEntry($cacheKey);
 
         if ($entry !== null && (time() - $entry['stored_at']) < self::LLMS_FRESH_SECONDS) {
@@ -256,7 +258,7 @@ class DeliveryService
         if ($this->cache->load($missKey)) {
             return null;
         }
-        if ($this->cache->load(self::DOWN_FLAG_KEY)) {
+        if ($this->cache->load($downKey)) {
             return $entry !== null ? ['content' => $entry['content'], 'etag' => $entry['etag']] : null;
         }
 
@@ -283,12 +285,26 @@ class DeliveryService
         }
         if ($result['status'] === 401) {
             $this->logger->warning('Citecue: the delivery API rejected the configured API key (401 invalid_key).');
-            $this->cache->save('1', self::DOWN_FLAG_KEY, [], self::DOWN_TTL);
+            $this->cache->save('1', $downKey, [], self::DOWN_TTL);
             return null;
         }
 
-        $this->cache->save('1', self::DOWN_FLAG_KEY, [], self::DOWN_TTL);
+        $this->cache->save('1', $downKey, [], self::DOWN_TTL);
         return $entry !== null ? ['content' => $entry['content'], 'etag' => $entry['etag']] : null;
+    }
+
+    /**
+     * Circuit-breaker cache key, scoped per project (public key). In a
+     * multi-store install a bad key or unreachable base URL for one store
+     * view must not trip the breaker for every other store, so the flag is
+     * never global.
+     *
+     * @param string $publicKey
+     * @return string
+     */
+    private function downFlagKey(string $publicKey): string
+    {
+        return self::DOWN_FLAG_PREFIX . hash('sha256', $publicKey);
     }
 
     /**

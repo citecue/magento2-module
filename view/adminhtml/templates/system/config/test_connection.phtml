@@ -37,7 +37,9 @@ require(['jquery'], function ($) {
                 form_key: window.FORM_KEY,
                 api_key: $('#citecue_delivery_general_api_key').val() || '',
                 public_key: $('#citecue_delivery_general_public_key').val() || '',
-                base_url: $('#citecue_delivery_advanced_base_url').val() || ''
+                base_url: $('#citecue_delivery_advanced_base_url').val() || '',
+                store: '<?= $block->getRequest()->getParam('store') !== null ? (int)$block->getRequest()->getParam('store') : '' ?>',
+                website: '<?= $block->getRequest()->getParam('website') !== null ? (int)$block->getRequest()->getParam('website') : '' ?>'
             }
         }).done(function (response) {
             if (!response || !response.success) {
