@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="default">
+        <!-- Refresh the AI-crawler user-agent registry from the keyless
+             /api/delivery/v1/crawlers feed once a day, so new crawlers are
+             picked up without a module update. -->
+        <job name="citecue_delivery_refresh_crawlers" instance="Citecue\Delivery\Cron\RefreshCrawlerRegistry" method="execute">
+            <schedule>20 3 * * *</schedule>
+        </job>
+    </group>
+</config>
