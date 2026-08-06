@@ -1,0 +1,8 @@
+# Keep development-only files out of dist archives (git archive / Packagist).
+# The Marketplace submission ZIP is built with git archive, so these never
+# ship to merchants; LICENSE, README and the module code always do.
+/docs           export-ignore
+/.gitattributes export-ignore
+/.gitignore     export-ignore
+/.github        export-ignore
+/phpcs.xml.dist export-ignore

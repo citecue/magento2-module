@@ -16,11 +16,13 @@ namespace Citecue\Delivery\Model;
 class PathMatcher
 {
     /**
+     * Whether the request path is excluded by one of the configured prefixes.
+     *
      * @param string $pathInfo Raw request path info (e.g. "/checkout/cart/")
      * @param string[] $prefixes Normalized prefixes (lowercase, no surrounding slashes)
      * @return bool
      */
-    public static function isExcluded(string $pathInfo, array $prefixes): bool
+    public function isExcluded(string $pathInfo, array $prefixes): bool
     {
         $path = strtolower(trim($pathInfo, '/'));
         foreach ($prefixes as $prefix) {

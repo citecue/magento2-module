@@ -62,6 +62,8 @@ class Index implements HttpGetActionInterface
     }
 
     /**
+     * Serves the store's llms.txt with ETag/304 support, or a plain 404.
+     *
      * @return Raw
      */
     public function execute(): Raw

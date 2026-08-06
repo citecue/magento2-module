@@ -14,39 +14,49 @@ class PathMatcherTest extends TestCase
 {
     private const PREFIXES = ['checkout', 'customer', 'review/customer', 'robots.txt'];
 
+    /**
+     * @var PathMatcher
+     */
+    private $matcher;
+
+    protected function setUp(): void
+    {
+        $this->matcher = new PathMatcher();
+    }
+
     public function testExactSegmentMatches(): void
     {
-        $this->assertTrue(PathMatcher::isExcluded('/checkout', self::PREFIXES));
-        $this->assertTrue(PathMatcher::isExcluded('/checkout/', self::PREFIXES));
-        $this->assertTrue(PathMatcher::isExcluded('/checkout/cart', self::PREFIXES));
-        $this->assertTrue(PathMatcher::isExcluded('/CHECKOUT/CART/', self::PREFIXES));
-        $this->assertTrue(PathMatcher::isExcluded('/robots.txt', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/checkout', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/checkout/', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/checkout/cart', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/CHECKOUT/CART/', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/robots.txt', self::PREFIXES));
     }
 
     public function testMultiSegmentPrefix(): void
     {
-        $this->assertTrue(PathMatcher::isExcluded('/review/customer', self::PREFIXES));
-        $this->assertTrue(PathMatcher::isExcluded('/review/customer/index', self::PREFIXES));
-        $this->assertFalse(PathMatcher::isExcluded('/review/product/list', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/review/customer', self::PREFIXES));
+        $this->assertTrue($this->matcher->isExcluded('/review/customer/index', self::PREFIXES));
+        $this->assertFalse($this->matcher->isExcluded('/review/product/list', self::PREFIXES));
     }
 
     public function testPartialSegmentDoesNotMatch(): void
     {
         // A CMS page like /checkout-guide must stay eligible for optimization.
-        $this->assertFalse(PathMatcher::isExcluded('/checkout-guide', self::PREFIXES));
-        $this->assertFalse(PathMatcher::isExcluded('/customers', self::PREFIXES));
+        $this->assertFalse($this->matcher->isExcluded('/checkout-guide', self::PREFIXES));
+        $this->assertFalse($this->matcher->isExcluded('/customers', self::PREFIXES));
     }
 
     public function testRootAndUnrelatedPaths(): void
     {
-        $this->assertFalse(PathMatcher::isExcluded('/', self::PREFIXES));
-        $this->assertFalse(PathMatcher::isExcluded('/blog/ai-shopping-trends', self::PREFIXES));
-        $this->assertFalse(PathMatcher::isExcluded('/some-product.html', self::PREFIXES));
+        $this->assertFalse($this->matcher->isExcluded('/', self::PREFIXES));
+        $this->assertFalse($this->matcher->isExcluded('/blog/ai-shopping-trends', self::PREFIXES));
+        $this->assertFalse($this->matcher->isExcluded('/some-product.html', self::PREFIXES));
     }
 
     public function testEmptyPrefixListNeverExcludes(): void
     {
-        $this->assertFalse(PathMatcher::isExcluded('/checkout', []));
-        $this->assertFalse(PathMatcher::isExcluded('/checkout', ['']));
+        $this->assertFalse($this->matcher->isExcluded('/checkout', []));
+        $this->assertFalse($this->matcher->isExcluded('/checkout', ['']));
     }
 }
