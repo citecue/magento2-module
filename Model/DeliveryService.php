@@ -58,6 +58,11 @@ class DeliveryService
     private $crawlerRegistry;
 
     /**
+     * @var PathMatcher
+     */
+    private $pathMatcher;
+
+    /**
      * @var Client
      */
     private $client;
@@ -85,6 +90,7 @@ class DeliveryService
     /**
      * @param Config $config
      * @param CrawlerRegistry $crawlerRegistry
+     * @param PathMatcher $pathMatcher
      * @param Client $client
      * @param DeliveryCache $cache
      * @param Json $json
@@ -94,6 +100,7 @@ class DeliveryService
     public function __construct(
         Config $config,
         CrawlerRegistry $crawlerRegistry,
+        PathMatcher $pathMatcher,
         Client $client,
         DeliveryCache $cache,
         Json $json,
@@ -102,6 +109,7 @@ class DeliveryService
     ) {
         $this->config = $config;
         $this->crawlerRegistry = $crawlerRegistry;
+        $this->pathMatcher = $pathMatcher;
         $this->client = $client;
         $this->cache = $cache;
         $this->json = $json;
@@ -110,8 +118,10 @@ class DeliveryService
     }
 
     /**
-     * Cheap pre-check used by the FPC bypass plugin: is this request from a
-     * servable AI crawler on a store where the middleware is active?
+     * Cheap pre-check used by the FPC bypass plugin.
+     *
+     * Is this request from a servable AI crawler on a store where the
+     * middleware is active?
      *
      * @param HttpRequest $request
      * @return bool
@@ -153,7 +163,7 @@ class DeliveryService
         }
 
         $pathInfo = (string)$request->getPathInfo();
-        if (PathMatcher::isExcluded($pathInfo, $this->config->getExcludedPathPrefixes($storeId))
+        if ($this->pathMatcher->isExcluded($pathInfo, $this->config->getExcludedPathPrefixes($storeId))
             || trim($pathInfo, '/') === 'llms.txt'
         ) {
             return null;
@@ -170,7 +180,10 @@ class DeliveryService
         $localTtl = $this->config->getLocalCacheTtl($storeId);
         if ($entry !== null && $localTtl > 0 && (time() - $entry['stored_at']) < $localTtl) {
             if ($debug) {
-                $this->logger->debug('Citecue: serving locally cached page to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
+                $this->logger->debug(
+                    'Citecue: serving locally cached page to ' . $crawler['id']
+                    . ' for ' . $this->redactUrl($url)
+                );
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -196,7 +209,10 @@ class DeliveryService
             ];
             $this->saveEntry($cacheKey, $entry);
             if ($debug) {
-                $this->logger->debug('Citecue: serving optimized page (' . $entry['mode'] . ') to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
+                $this->logger->debug(
+                    'Citecue: serving optimized page (' . $entry['mode'] . ') to ' . $crawler['id']
+                    . ' for ' . $this->redactUrl($url)
+                );
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -205,7 +221,10 @@ class DeliveryService
             $entry['stored_at'] = time();
             $this->saveEntry($cacheKey, $entry);
             if ($debug) {
-                $this->logger->debug('Citecue: 304 revalidated, serving cached page to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
+                $this->logger->debug(
+                    'Citecue: 304 revalidated, serving cached page to ' . $crawler['id']
+                    . ' for ' . $this->redactUrl($url)
+                );
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -213,7 +232,12 @@ class DeliveryService
         if ($result['status'] === 404) {
             // No optimized version — remember briefly, pass through. The API
             // already recorded the passthrough hit for Agent Traffic.
-            $this->cache->save('1', self::MISS_CACHE_PREFIX . hash('sha256', $publicKey . '|' . $url), [], self::MISS_TTL);
+            $this->cache->save(
+                '1',
+                self::MISS_CACHE_PREFIX . hash('sha256', $publicKey . '|' . $url),
+                [],
+                self::MISS_TTL
+            );
             return null;
         }
 
@@ -227,7 +251,10 @@ class DeliveryService
         $this->cache->save('1', $downKey, [], self::DOWN_TTL);
         if ($entry !== null) {
             if ($debug) {
-                $this->logger->debug('Citecue: API unavailable, serving stale cached page to ' . $crawler['id'] . ' for ' . $this->redactUrl($url));
+                $this->logger->debug(
+                    'Citecue: API unavailable, serving stale cached page to ' . $crawler['id']
+                    . ' for ' . $this->redactUrl($url)
+                );
             }
             return $this->pageResult($entry, $crawler['id']);
         }
@@ -318,6 +345,7 @@ class DeliveryService
      */
     private function redactUrl(string $url): string
     {
+        // phpcs:ignore Magento2.Functions.DiscouragedFunction -- log redaction only; no framework URL parser fits
         $parts = parse_url($url);
         if ($parts === false || empty($parts['host'])) {
             return '[redacted-url]';
@@ -327,9 +355,11 @@ class DeliveryService
     }
 
     /**
-     * @param array{content: string, etag: string|null, mode: string, stored_at: int} $entry
+     * Shapes a cached entry into the middleware's serve result.
+     *
+     * @param array{content:string,etag:string|null,mode:string,stored_at:int} $entry
      * @param string $crawlerId
-     * @return array{content: string, mode: string, crawler: string}
+     * @return array{content:string,mode:string,crawler:string}
      */
     private function pageResult(array $entry, string $crawlerId): array
     {
@@ -341,8 +371,10 @@ class DeliveryService
     }
 
     /**
+     * Loads and validates a locally cached delivery entry.
+     *
      * @param string $cacheKey
-     * @return array{content: string, etag: string|null, mode: string, stored_at: int}|null
+     * @return array{content:string,etag:string|null,mode:string,stored_at:int}|null
      */
     private function loadEntry(string $cacheKey): ?array
     {
@@ -367,8 +399,10 @@ class DeliveryService
     }
 
     /**
+     * Persists a delivery entry to the local cache; failures are logged only.
+     *
      * @param string $cacheKey
-     * @param array{content: string, etag: string|null, mode: string, stored_at: int} $entry
+     * @param array{content:string,etag:string|null,mode:string,stored_at:int} $entry
      * @return void
      */
     private function saveEntry(string $cacheKey, array $entry): void
@@ -381,6 +415,8 @@ class DeliveryService
     }
 
     /**
+     * The request's User-Agent header, or null when absent.
+     *
      * @param HttpRequest $request
      * @return string|null
      */
@@ -391,8 +427,10 @@ class DeliveryService
     }
 
     /**
-     * Absolute URL as requested by the crawler. Sent raw — the API strips
-     * tracking params, www and trailing slashes itself (normalizePageUrl).
+     * Absolute URL as requested by the crawler.
+     *
+     * Sent raw — the API strips tracking params, www and trailing slashes
+     * itself (normalizePageUrl).
      *
      * @param HttpRequest $request
      * @return string
@@ -403,6 +441,8 @@ class DeliveryService
     }
 
     /**
+     * The current store id, or null when store resolution fails.
+     *
      * @return int|null
      */
     private function currentStoreId(): ?int

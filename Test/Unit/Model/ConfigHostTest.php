@@ -22,7 +22,9 @@ class ConfigHostTest extends TestCase
 
     public function testParsesLinesUrlsAndPorts(): void
     {
-        $hosts = Config::normalizeHostList("staging.citecue.com\nhttps://Self-Hosted.example.com/path\nother.example.com:8443");
+        $hosts = Config::normalizeHostList(
+            "staging.citecue.com\nhttps://Self-Hosted.example.com/path\nother.example.com:8443"
+        );
         $this->assertContains('app.citecue.com', $hosts);
         $this->assertContains('staging.citecue.com', $hosts);
         $this->assertContains('self-hosted.example.com', $hosts);
@@ -62,10 +64,11 @@ class ConfigHostTest extends TestCase
 
     public function testAllowsPublicIpLiteralOnlyWhenAllowlisted(): void
     {
-        $allowed = Config::normalizeHostList('203.0.113.10');
-        // 203.0.113.0/24 is TEST-NET-3 (reserved) → still rejected.
-        $this->assertFalse(Config::isEndpointAllowed('https://203.0.113.10/api', $allowed));
-        // A genuinely public IP that is allowlisted is accepted.
+        // 240.0.0.0/4 is reserved (FILTER_FLAG_NO_RES_RANGE) → rejected even
+        // when explicitly allowlisted.
+        $reservedAllowed = Config::normalizeHostList('250.1.2.3');
+        $this->assertFalse(Config::isEndpointAllowed('https://250.1.2.3/api', $reservedAllowed));
+        // A public IP that is allowlisted is accepted.
         $publicAllowed = Config::normalizeHostList('8.8.8.8');
         $this->assertTrue(Config::isEndpointAllowed('https://8.8.8.8/api', $publicAllowed));
         // ...but not when it isn't on the list.

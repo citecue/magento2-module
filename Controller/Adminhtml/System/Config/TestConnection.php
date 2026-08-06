@@ -69,6 +69,8 @@ class TestConnection extends Action implements HttpPostActionInterface
     }
 
     /**
+     * Runs the connection test and returns the organization's projects as JSON.
+     *
      * @return JsonResult
      */
     public function execute(): JsonResult

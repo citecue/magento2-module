@@ -48,6 +48,8 @@ class PageCacheKernelPlugin
     }
 
     /**
+     * Forces a full-page-cache miss for detected AI crawlers.
+     *
      * @param Kernel $subject
      * @param callable $proceed
      * @return \Magento\Framework\App\Response\Http|false

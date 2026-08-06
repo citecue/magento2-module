@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!--
+        The org API key is credential material: mark it sensitive so
+        bin/magento app:config:dump excludes it from shared config and
+        deployments must supply it per environment.
+    -->
+    <type name="Magento\Config\Model\Config\TypePool">
+        <arguments>
+            <argument name="sensitive" xsi:type="array">
+                <item name="citecue_delivery/general/api_key" xsi:type="string">1</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

@@ -55,6 +55,8 @@ class Router implements RouterInterface
     }
 
     /**
+     * Matches the literal /llms.txt path and forwards it to citecue/llms/index.
+     *
      * @param RequestInterface $request
      * @return ActionInterface|null
      */

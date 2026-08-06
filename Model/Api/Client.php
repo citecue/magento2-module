@@ -151,12 +151,20 @@ class Client
 
         $result = $this->request($base . '/api/delivery/v2/config', $this->authHeaders($apiKey), $storeId);
         if ($result['status'] !== 200 || $result['body'] === null) {
-            return ['status' => $result['status'], 'projects' => null, 'error' => $this->describeFailure($result['status'])];
+            return [
+                'status' => $result['status'],
+                'projects' => null,
+                'error' => $this->describeFailure($result['status']),
+            ];
         }
         try {
             $decoded = $this->json->unserialize($result['body']);
         } catch (\Throwable $e) {
-            return ['status' => $result['status'], 'projects' => null, 'error' => 'Unexpected response from the Citecue API.'];
+            return [
+                'status' => $result['status'],
+                'projects' => null,
+                'error' => 'Unexpected response from the Citecue API.',
+            ];
         }
         $projects = is_array($decoded) && isset($decoded['projects']) && is_array($decoded['projects'])
             ? $decoded['projects']
@@ -198,7 +206,7 @@ class Client
      * Standard headers for the authenticated v2 channel.
      *
      * @param string $apiKey
-     * @return array<string, string>
+     * @return array<string,string>
      */
     private function authHeaders(string $apiKey): array
     {
@@ -210,6 +218,8 @@ class Client
     }
 
     /**
+     * The User-Agent this module identifies itself with to the Citecue API.
+     *
      * @return string
      */
     private function userAgent(): string
@@ -221,7 +231,7 @@ class Client
      * Executes a GET and normalizes the outcome; transport errors → status 0.
      *
      * @param string $endpoint
-     * @param array<string, string> $headers
+     * @param array<string,string> $headers
      * @param int|string|null $storeId
      * @return array{status: int, body: string|null, etag: string|null, mode: string|null}
      */
@@ -235,7 +245,10 @@ class Client
         // the Test Connection base-URL override.
         if (!$this->config->isAllowedBaseUrl($endpoint, $storeId)) {
             if ($this->config->isDebugLogging($storeId)) {
-                $this->logger->debug('Citecue: refusing delivery endpoint not on the allowed API host list: ' . $this->redact($endpoint));
+                $this->logger->debug(
+                    'Citecue: refusing delivery endpoint not on the allowed API host list: '
+                    . $this->redact($endpoint)
+                );
             }
             return ['status' => 0, 'body' => null, 'etag' => null, 'mode' => null];
         }
@@ -248,7 +261,9 @@ class Client
             $curl->get($endpoint);
         } catch (\Throwable $e) {
             if ($this->config->isDebugLogging($storeId)) {
-                $this->logger->debug('Citecue: transport error for ' . $this->redact($endpoint) . ': ' . $e->getMessage());
+                $this->logger->debug(
+                    'Citecue: transport error for ' . $this->redact($endpoint) . ': ' . $e->getMessage()
+                );
             }
             return ['status' => 0, 'body' => null, 'etag' => null, 'mode' => null];
         }
@@ -266,8 +281,8 @@ class Client
     /**
      * Lowercases header names and flattens duplicate values to the last one.
      *
-     * @param array<string, mixed> $headers
-     * @return array<string, string>
+     * @param array<string,mixed> $headers
+     * @return array<string,string>
      */
     private function normalizeHeaders(array $headers): array
     {

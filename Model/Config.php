@@ -151,10 +151,11 @@ class Config
     }
 
     /**
-     * The admin-configured trusted API hosts (the built-in default host is
-     * always included). Credentialed delivery requests may only target these
-     * hosts, so a config editor can't redirect the org API key to an internal
-     * or attacker-controlled endpoint.
+     * The admin-configured trusted API hosts.
+     *
+     * The built-in default host is always included. Credentialed delivery
+     * requests may only target these hosts, so a config editor can't redirect
+     * the org API key to an internal or attacker-controlled endpoint.
      *
      * @param int|string|null $storeId
      * @return string[]
@@ -169,8 +170,7 @@ class Config
     }
 
     /**
-     * Whether a base URL is a valid, allowed target for credentialed requests
-     * at the given scope.
+     * Whether a base URL may receive credentialed requests at this scope.
      *
      * @param string $url
      * @param int|string|null $storeId
@@ -181,12 +181,21 @@ class Config
         return self::isEndpointAllowed($url, $this->getAllowedHosts($storeId));
     }
 
+    // The three helpers below are deliberately pure, dependency-free statics:
+    // they implement the SSRF host-allowlist rules once, are unit-tested
+    // without the framework, and are shared with the save-time base-URL
+    // validator. parse_url() is the only stdlib URL parser; no framework
+    // equivalent is equally side-effect-free.
+    // phpcs:disable Magento2.Functions.StaticFunction, Magento2.Functions.DiscouragedFunction
+
     /**
-     * Parses a newline/comma-separated host list into a normalized, unique,
-     * lowercased set of hostnames. The built-in default host is always present
-     * so the module never locks itself out of its own default endpoint. Each
-     * entry may be a bare host or a full URL (the host is extracted). Pure —
-     * unit-tested and reused by the base-URL backend validator.
+     * Parses a newline/comma-separated host list into normalized hostnames.
+     *
+     * The result is a unique, lowercased set. The built-in default host is
+     * always present so the module never locks itself out of its own default
+     * endpoint. Each entry may be a bare host or a full URL (the host is
+     * extracted). Pure — unit-tested and reused by the base-URL backend
+     * validator.
      *
      * @param string $raw
      * @return string[]
@@ -208,11 +217,12 @@ class Config
     }
 
     /**
-     * Whether an absolute URL is a valid, allowed delivery endpoint: it must be
-     * https, its host must be in $allowedHosts, and IP-literal hosts in a
-     * private/loopback/link-local/reserved range are always rejected (blocking
-     * the cloud metadata endpoint, localhost-by-IP, etc.) even if allowlisted.
-     * Pure.
+     * Whether an absolute URL is a valid, allowed delivery endpoint.
+     *
+     * It must be https, its host must be in $allowedHosts, and IP-literal
+     * hosts in a private/loopback/link-local/reserved range are always
+     * rejected (blocking the cloud metadata endpoint, localhost-by-IP, etc.)
+     * even if allowlisted. Pure.
      *
      * @param string $url
      * @param string[] $allowedHosts
@@ -233,7 +243,11 @@ class Config
         // allowlist. Bracketed IPv6 literals are unwrapped first.
         $ipCandidate = trim($host, '[]');
         if (filter_var($ipCandidate, FILTER_VALIDATE_IP) !== false
-            && filter_var($ipCandidate, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false
+            && filter_var(
+                $ipCandidate,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            ) === false
         ) {
             return false;
         }
@@ -268,6 +282,8 @@ class Config
         return $host;
     }
 
+    // phpcs:enable Magento2.Functions.StaticFunction, Magento2.Functions.DiscouragedFunction
+
     /**
      * Total request timeout in seconds (minimum 1).
      *
@@ -297,8 +313,9 @@ class Config
     }
 
     /**
-     * Seconds a locally cached optimized page may be served without
-     * revalidating against the API. 0 = always revalidate.
+     * Seconds a locally cached optimized page may be served unrevalidated.
+     *
+     * 0 = always revalidate against the API.
      *
      * @param int|string|null $storeId
      * @return int
