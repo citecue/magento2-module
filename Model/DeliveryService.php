@@ -408,7 +408,10 @@ class DeliveryService
     private function saveEntry(string $cacheKey, array $entry): void
     {
         try {
-            $this->cache->save($this->json->serialize($entry), $cacheKey, [], self::ENTRY_TTL);
+            // save() reports a backend write failure as false, not an exception.
+            if (!$this->cache->save($this->json->serialize($entry), $cacheKey, [], self::ENTRY_TTL)) {
+                $this->logger->warning('Citecue: the delivery cache backend refused the write for ' . $cacheKey);
+            }
         } catch (\Throwable $e) {
             $this->logger->warning('Citecue: failed to write the delivery cache: ' . $e->getMessage());
         }

@@ -104,6 +104,18 @@ bin/magento setup:upgrade
 bin/magento cache:flush
 ```
 
+Magento does not delete configuration on uninstall, so the module's settings
+— including the encrypted organization API key — remain in
+`core_config_data`. To fully clean up, either clear the **API Key** field and
+save *before* uninstalling, or remove the rows afterwards:
+
+```sql
+DELETE FROM core_config_data WHERE path LIKE 'citecue_delivery/%';
+```
+
+If the key should no longer be used at all, also revoke it in the Citecue
+dashboard (**Organization → API keys**).
+
 The module is fail-open by design: disabling it (or removing the API key)
 simply restores stock Magento behavior for every visitor.
 

@@ -160,6 +160,8 @@ The codebase is clean against the [Magento Coding Standard](https://github.com/m
 
 ```bash
 vendor/bin/phpcs --standard=Magento2 app/code/Citecue/Delivery
+vendor/bin/phpcs --standard=PHPCompatibility --runtime-set testVersion 8.1-8.4 \
+    --extensions=php,phtml app/code/Citecue/Delivery
 ```
 
 ## License

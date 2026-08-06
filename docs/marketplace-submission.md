@@ -28,10 +28,14 @@ Rebuild the ZIP after any change:
 
 ```bash
 cd /path/to/module
+rm -rf /tmp/citecue-pkg && mkdir -p /tmp/citecue-pkg
 rsync -a --exclude='.git*' --exclude='docs' --exclude='dist' \
       --exclude='phpcs.xml.dist' --exclude='.DS_Store' ./ /tmp/citecue-pkg/
 cd /tmp/citecue-pkg && zip -rq citecue_module-delivery-1.0.0.zip . -x '.*'
 ```
+
+(The `rm -rf` matters: reusing a stale staging directory would carry files
+you have since deleted from the module into the new ZIP.)
 
 ## Manual steps (Developer Portal)
 
@@ -74,8 +78,12 @@ cd /tmp/citecue-pkg && zip -rq citecue_module-delivery-1.0.0.zip . -x '.*'
 - **Why does the extension call an external API?** Core function: it fetches
   the AI-optimized page variant from the merchant-configured Citecue account.
   Documented in README + guides; keyless calls are limited to the public
-  crawler-registry feed; no customer PII is transmitted (only the requested
-  URL and crawler id).
+  crawler-registry feed. The data transmitted is the crawler-requested URL
+  (including its query string, which in principle can carry identifying
+  parameters from crawled links) and the crawler id — no customer accounts,
+  session, order or payment data. Only requests from detected AI crawlers
+  ever trigger an API call, and checkout/customer/cart/API paths are
+  excluded by default.
 - **"Cloaking" concern**: only self-declared AI crawlers (not Googlebot/
   Bingbot or users) receive the optimized variant, which is derived from the
   merchant's own content; responses are `private, no-store` so shared caches
