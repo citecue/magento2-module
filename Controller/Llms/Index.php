@@ -69,6 +69,7 @@ class Index implements HttpGetActionInterface
     public function execute(): Raw
     {
         $result = $this->rawFactory->create();
+        $isHead = strtoupper((string)$this->request->getMethod()) === 'HEAD';
         try {
             $llms = $this->deliveryService->getLlmsTxt();
         } catch (\Throwable $e) {
@@ -80,13 +81,13 @@ class Index implements HttpGetActionInterface
             $result->setHttpResponseCode(404);
             $result->setHeader('Content-Type', 'text/plain; charset=UTF-8', true);
             $result->setHeader('Cache-Control', 'public, max-age=60', true);
-            $result->setContents('Not found');
+            $result->setContents($isHead ? '' : 'Not found');
             return $result;
         }
 
         $etag = $llms['etag'];
         $result->setHeader('Content-Type', 'text/plain; charset=UTF-8', true);
-        $result->setHeader('Cache-Control', 'public, max-age=300', true);
+        $result->setHeader('Cache-Control', 'private, max-age=300', true);
         if ($etag !== null && $etag !== '') {
             $result->setHeader('ETag', $etag, true);
             $ifNoneMatch = $this->request->getHeader('If-None-Match');
@@ -97,7 +98,7 @@ class Index implements HttpGetActionInterface
             }
         }
         $result->setHttpResponseCode(200);
-        $result->setContents($llms['content']);
+        $result->setContents($isHead ? '' : $llms['content']);
         return $result;
     }
 }

@@ -33,7 +33,7 @@ to its own Citecue project.
 | Field | Description |
 |---|---|
 | **Enabled** | Master switch. Off = the module does nothing at all. |
-| **API Key** | Your organization API key (`ck_live_…`) from the Citecue dashboard → Organization → API keys. Stored encrypted. |
+| **API Key** | Your organization API key (`ck_live_…`) from the Citecue dashboard → API & MCP access. Stored encrypted. |
 | **Project Public Key** | The public key of the Citecue project matching this store's domain. Use **Test Connection** to pick it. |
 | **Test Connection** | Verifies the API key and lists your projects (domain, public key, delivery status, llms.txt) with a one-click **Use this key**. |
 | **Serve llms.txt** | Serve `https://yourstore.com/llms.txt` (llmstxt.org convention). Also requires the project's "Serve llms.txt" toggle in Citecue. |
@@ -51,7 +51,7 @@ to its own Citecue project.
 
 ## Initial setup, step by step
 
-1. In the Citecue dashboard, open **Organization → API keys** and mint a key
+1. In the Citecue dashboard, open **API & MCP access** and mint a key
    (`ck_live_…`).
 2. Enable **Auto-Fix delivery** for your project in Citecue (this is the kill
    switch — when off, the API answers every request with a miss and the
@@ -89,11 +89,12 @@ new AI crawlers are picked up without a module update.
 
 | Symptom | Check |
 |---|---|
-| Test Connection fails with "Invalid API key" | Re-copy the `ck_live_…` key from Citecue → Organization → API keys. |
+| Test Connection fails with "Invalid API key" | Re-copy the `ck_live_…` key from Citecue → API & MCP access. |
 | Crawlers get normal pages only | Is **Auto-Fix delivery** enabled for the project in Citecue? Is the page optimized there? Is the path excluded by a prefix? |
 | No crawler hits appear in Agent Traffic | Behind Varnish/CDN, add the crawler cache-bypass rule (crawlers may be answered from the edge cache before Magento runs). |
 | Verify what the module is doing | Enable **Debug Logging** and watch `var/log/debug.log`; test with `curl -A "GPTBot" https://yourstore.com/some-page`. |
-| API outage | Nothing to do: a 60-second circuit breaker stops API calls and crawlers get locally cached copies or the normal page. |
+| API outage | Nothing to do: a 60-second circuit breaker stops API calls. Crawlers get a locally cached copy for at most 300 seconds after its last successful validation, then the normal page. |
+| Revoked key (401) | Crawlers get normal pages immediately; nothing stale is served. Mint a new key and save the configuration (or run `bin/magento cache:clean citecue_delivery` after CLI changes). |
 
 ## Security notes
 
@@ -107,5 +108,5 @@ new AI crawlers are picked up without a module update.
 
 ## Support
 
-- Issues: https://github.com/henry-mosh/citecue-magento/issues
+- Issues: https://github.com/citecue/magento2-module/issues
 - Citecue dashboard: https://app.citecue.com

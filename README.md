@@ -15,21 +15,23 @@ It is the Magento counterpart of Citecue's Cloudflare Worker snippet and WordPre
 
 ## How it works
 
-1. **Detection** — every frontend `GET` is matched against Citecue's AI-crawler registry (case-insensitive UA token match, longest token wins). The module ships a bundled snapshot of the registry and refreshes it daily from the keyless `GET /api/delivery/v1/crawlers` feed via cron, so new crawlers are picked up without a module update. Matching never makes a network call on the request path.
+1. **Detection** — every frontend `GET` and `HEAD` request is matched against Citecue's AI-crawler registry (case-insensitive UA token match, longest token wins). The module ships a bundled snapshot of the registry and refreshes it daily from the keyless `GET /api/delivery/v1/crawlers` feed via cron, so new crawlers are picked up without a module update. Matching never makes a network call on the request path.
 2. **Delivery** — for a detected crawler, the module calls `GET /api/delivery/v2/page?k=<projectPublicKey>&u=<requestedUrl>&b=<crawlerId>` with your `ck_live_…` org API key (`Authorization: Bearer`) and `X-Citecue-Channel: magento`:
-   * **200** → the optimized HTML is served to the crawler (with `X-Citecue-Mode` passed through) and cached locally with its ETag;
+   * **200** → the optimized body is served to the crawler (with `X-Citecue-Mode` passed through, and the stored `Content-Type` and `Vary: Accept`) and cached locally, per Accept variant, with its ETag. A crawler sending `Accept: text/markdown` receives the markdown representation when the API has one; HTML and markdown variants are cached separately. HEAD requests get the same headers with an empty body;
    * **304** (revalidation via `If-None-Match`) → the locally cached body is served;
-   * **404** (`not_optimized` miss sentinel) → the request **passes through** to normal Magento rendering. The API records the passthrough hit, which powers the Agent Traffic dashboard.
+   * **404** (`not_optimized` miss sentinel, fix undone or delivery switched off) → the locally cached copy for that Accept variant is **deleted** and the request **passes through** to normal Magento rendering. The API records the passthrough hit, which powers the Agent Traffic dashboard;
+   * **401** (revoked API key) → treated as "delivery off", never as an outage: the request passes through, nothing stale is served, and the per-project cache epoch is rotated, which instantly orphans every cached entry for that project. The API is re-checked at most once every 60 seconds.
 3. **Analytics** — hit recording (served/passthrough, per crawler, channel `magento`) happens server-side inside the same API request. No extra beacon.
-4. **llms.txt** — `https://yourstore.com/llms.txt` serves the project's llms.txt (llmstxt.org convention) fetched from `GET /api/delivery/v2/llms.txt`, gated on both the module toggle and the project's "Serve llms.txt" setting in Citecue.
+4. **llms.txt** — `https://yourstore.com/llms.txt` serves the project's llms.txt (llmstxt.org convention) fetched from `GET /api/delivery/v2/llms.txt`, gated on both the module toggle and the project's "Serve llms.txt" setting in Citecue. It is sent with `Cache-Control: private, max-age=300`, so turning llms.txt off propagates within about five minutes, even behind Varnish or a CDN. The llms.txt 404 stays `public, max-age=60`.
 
 ### Fail-open, always
 
 The middleware can never take the storefront down. Any failure — timeout, DNS, TLS, 5xx, invalid key, malformed response, even an exception inside the module itself — results in the normal Magento page. Additionally:
 
 * **Timeouts** are short and configurable (default 3s total / 2s connect).
-* A transport error trips a **60s circuit breaker**: while open, no API calls are made at all; crawlers get locally cached copies (up to 24h stale) or the normal page.
+* A transport error or 5xx trips a **60s circuit breaker**: while open, no API calls are made at all. During such an outage a cached page is served **stale for at most 300 seconds** after its last successful validation (matching the API's `max-age=300`); after that, crawlers get the normal page. The 24h local entry TTL only enables `If-None-Match` / 304 revalidation reuse; it never allows day-long stale serving.
 * Misses are **negative-cached for 60s** (mirroring the API's miss `Cache-Control`), so unoptimized pages don't trigger an API call per crawler hit.
+* Saving the module's configuration section flushes the module's delivery state cache (entries, miss markers, circuit breaker and key flags), so a replaced API key takes effect immediately. The cached crawler registry survives that flush. CLI changes (`bin/magento config:set`) do not fire this, so run `bin/magento cache:clean citecue_delivery` after them.
 
 ### Full-page cache interplay
 
@@ -44,6 +46,8 @@ if (req.http.User-Agent ~ "(?i)(GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Clau
     return (pass);
 }
 ```
+
+The list mirrors the module's bundled crawler registry as of v1.1.0. The module itself picks up new crawlers automatically from the daily registry feed, but a Varnish or CDN in front of the store needs this VCL list edited by hand. The current list can be fetched from `GET /api/delivery/v1/crawlers` on the Citecue API.
 
 The same applies to a CDN in front of the store (Fastly, Cloudflare cache rules): bypass cache for these user agents. (If the site is on Cloudflare, consider Citecue's Worker snippet instead — it serves at the edge without touching Magento.)
 
@@ -65,7 +69,7 @@ bin/magento cache:flush
 ### Composer (VCS repository)
 
 ```bash
-composer config repositories.citecue-delivery vcs https://github.com/henry-mosh/citecue-magento
+composer config repositories.citecue-delivery vcs https://github.com/citecue/magento2-module
 composer require citecue/module-delivery
 bin/magento module:enable Citecue_Delivery
 bin/magento setup:upgrade
@@ -93,7 +97,7 @@ Requires Magento 2.4.4+ (PHP 8.1–8.4).
 | Field | What it does |
 |---|---|
 | **Enabled** | Master switch. Off = the module does nothing at all. |
-| **API Key** | Your organization API key (`ck_live_…`) from the Citecue dashboard → Organization → API keys. Stored encrypted (`Magento\Config\Model\Config\Backend\Encrypted`). |
+| **API Key** | Your organization API key (`ck_live_…`) from the Citecue dashboard → API & MCP access. Stored encrypted (`Magento\Config\Model\Config\Backend\Encrypted`). |
 | **Project Public Key** | The public key of the Citecue project matching this store's domain. Click **Test Connection** to list your projects and pick the key. |
 | **Test Connection** | Calls `GET /api/delivery/v2/config` with the entered key and lists your projects (domain, public key, delivery enabled, llms.txt) with a one-click "Use this key". |
 | **Serve llms.txt** | Serve `/llms.txt` at the store's domain root. Also requires the project's "Serve llms.txt" toggle in Citecue. |
@@ -110,7 +114,7 @@ Everything the module stores locally (optimized bodies, ETags, llms.txt, the cra
 
 ### Getting the keys
 
-1. In the Citecue dashboard, open **Organization → API keys** and mint a key (`ck_live_…`).
+1. In the Citecue dashboard, open **API & MCP access** and mint a key (`ck_live_…`).
 2. Enable **Auto-Fix delivery** for the project (the kill switch in Citecue — when off, the API answers every page request with a miss and the middleware passes everything through).
 3. Paste the key in Magento, hit **Test Connection**, click **Use this key** next to the project matching the store's domain, and save.
 
@@ -123,7 +127,7 @@ Detection is UA-based, matching the rest of the Citecue delivery layer. A UA spo
 ## Security & trust model
 
 - The module's settings (API key, base URL, **Allowed API Hosts**) live under the `Citecue_Delivery::config` admin ACL. An admin with that permission is already trusted with the org API key — the same boundary that lets them read or rotate it — so restricting *where* the key is sent is defense-in-depth, not a boundary against that admin.
-- Credentialed delivery requests are constrained to the **Allowed API Hosts** list (default `app.citecue.com`), over **HTTPS only**, and IP-literal hosts in private/loopback/link-local/reserved ranges are always rejected — even if allowlisted. Pointing the base URL at a new host is therefore an explicit, allowlisted decision, enforced at save time, when resolving stored config, and once more in the API client before the Bearer key is sent. The Magento curl client does not follow redirects, so a trusted host can't 3xx the request to an internal address.
+- Credentialed delivery requests are constrained to the **Allowed API Hosts** list (default `app.citecue.com`), over **HTTPS only**. IP-literal hosts in the module's explicit CIDR denylist (loopback, private, link-local, CGNAT, documentation, multicast/reserved, and the matching IPv6 ranges) and numeric-form hosts such as `127.1` or `2130706433` are always rejected, even if allowlisted. The denylist is explicit rather than delegated to PHP's filter flags, so it behaves identically on every supported PHP version. Pointing the base URL at a new host is therefore an explicit, allowlisted decision, enforced at save time, when resolving stored config, and once more in the API client before the Bearer key is sent. The Magento curl client does not follow redirects, so a trusted host can't 3xx the request to an internal address.
 - **Accepted residuals** (a deliberate trade-off — the allowlist was chosen over wiping the stored key on every base-URL edit): an admin who *deliberately* allowlists a host they control can direct the key there, and DNS rebinding of an explicitly-allowlisted hostname to a private address is not blocked (hostnames aren't resolved on the request path). Both require a trusted `Citecue_Delivery::config` admin to first allowlist the host. If your threat model needs a harder boundary, gate the Citecue configuration section behind a dedicated, more restricted admin role.
 
 ## Repository layout

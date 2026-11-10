@@ -114,12 +114,12 @@ DELETE FROM core_config_data WHERE path LIKE 'citecue_delivery/%';
 ```
 
 If the key should no longer be used at all, also revoke it in the Citecue
-dashboard (**Organization → API keys**).
+dashboard (**API & MCP access**).
 
 The module is fail-open by design: disabling it (or removing the API key)
 simply restores stock Magento behavior for every visitor.
 
 ## Support
 
-- Issues: https://github.com/henry-mosh/citecue-magento/issues
+- Issues: https://github.com/citecue/magento2-module/issues
 - Citecue dashboard & documentation: https://app.citecue.com

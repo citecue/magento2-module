@@ -29,6 +29,12 @@ require(['jquery'], function ($) {
         return $('<span></span>').text(String(value == null ? '' : value)).html();
     };
 
+    var warningHtml = function (response) {
+        return response && response.warning
+            ? '<div class="message message-warning warning"><div>' + esc(response.warning) + '</div></div>'
+            : '';
+    };
+
     $('#citecue_test_connection_btn').on('click', function () {
         var $btn = $(this),
             $result = $('#citecue_test_connection_result');
@@ -56,6 +62,7 @@ require(['jquery'], function ($) {
                         ? response.message
                         : '<?= $escaper->escapeJs(__('Connection failed.')) ?>')
                     + '</div></div>'
+                    + warningHtml(response)
                 );
                 return;
             }
@@ -89,7 +96,7 @@ require(['jquery'], function ($) {
                 });
                 html += '</tbody></table>';
             }
-            $result.html(html);
+            $result.html(html + warningHtml(response));
             $result.find('.citecue-use-key').on('click', function () {
                 $('#citecue_delivery_general_public_key').val($(this).data('key')).trigger('change');
                 $(this).replaceWith(

@@ -93,6 +93,8 @@ class TestConnection extends Action implements HttpPostActionInterface
         // at the same scope the admin is editing — not always the default.
         $storeId = $this->resolveScopeStoreId();
 
+        $warning = $this->buildWarning($postedKey, $postedBaseUrl, $storeId);
+
         try {
             $response = $this->client->fetchConfig($postedKey, $postedBaseUrl, $storeId);
         } catch (\Throwable $e) {
@@ -103,10 +105,10 @@ class TestConnection extends Action implements HttpPostActionInterface
         }
 
         if ($response['projects'] === null) {
-            return $result->setData([
+            return $result->setData($this->withWarning([
                 'success' => false,
                 'message' => $response['error'] ?? (string)__('Connection failed.'),
-            ]);
+            ], $warning));
         }
 
         $configuredPublicKey = trim((string)$this->getRequest()->getParam('public_key', ''))
@@ -127,11 +129,61 @@ class TestConnection extends Action implements HttpPostActionInterface
             ];
         }
 
-        return $result->setData([
+        return $result->setData($this->withWarning([
             'success' => true,
             'message' => (string)__('Connection OK — %1 project(s) found.', count($projects)),
             'projects' => $projects,
-        ]);
+        ], $warning));
+    }
+
+    /**
+     * Explains when the test did not exercise the Base URL the admin sees: the
+     * saved one was rejected by the allowlist (so the default host is used), or
+     * a typed-in override was ignored by the client.
+     *
+     * @param string|null $postedKey
+     * @param string|null $postedBaseUrl
+     * @param int|null $storeId
+     * @return string|null
+     */
+    private function buildWarning(?string $postedKey, ?string $postedBaseUrl, ?int $storeId): ?string
+    {
+        $rejected = $this->config->getRejectedBaseUrl($storeId);
+        if ($rejected !== null) {
+            return (string)__(
+                'The saved Base URL %1 is not on the Allowed API Hosts list for this scope, '
+                . 'so the module sends requests to %2 instead. '
+                . 'Add the host to Allowed API Hosts and save, or clear the Base URL.',
+                $rejected,
+                Config::DEFAULT_BASE_URL
+            );
+        }
+        if ($postedBaseUrl === null) {
+            return null;
+        }
+        $base = rtrim($postedBaseUrl, '/');
+        $used = $postedKey !== null && $this->config->isAllowedBaseUrl($base, $storeId);
+        if ($used || $base === $this->config->getBaseUrl($storeId)) {
+            return null;
+        }
+        return (string)__(
+            'The Base URL %1 was not tested: a Base URL override is only tested together with the API key, '
+            . 'and its host must be on the Allowed API Hosts list.',
+            $postedBaseUrl
+        );
+    }
+
+    /**
+     * @param array $data
+     * @param string|null $warning
+     * @return array
+     */
+    private function withWarning(array $data, ?string $warning): array
+    {
+        if ($warning !== null) {
+            $data['warning'] = $warning;
+        }
+        return $data;
     }
 
     /**

@@ -33,7 +33,7 @@ use Psr\Log\LoggerInterface;
  */
 class Client
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.1.0';
     public const CHANNEL = 'magento';
 
     /**
@@ -81,17 +81,24 @@ class Client
      * @param string $crawlerId Registry id (e.g. "gptbot"); the API renormalizes ids and tokens
      * @param string|null $etag Cached ETag for conditional revalidation
      * @param int|string|null $storeId
-     * @return array{status: int, body: string|null, etag: string|null, mode: string|null}
+     * @param string|null $accept Accept header to send (defaults to text/html)
+     * @return array{status: int, body: string|null, etag: string|null, mode: string|null,
+     *     content_type: string|null}
      */
-    public function fetchPage(string $url, string $crawlerId, ?string $etag, $storeId = null): array
-    {
+    public function fetchPage(
+        string $url,
+        string $crawlerId,
+        ?string $etag,
+        $storeId = null,
+        ?string $accept = null
+    ): array {
         $endpoint = $this->config->getBaseUrl($storeId) . '/api/delivery/v2/page?' . http_build_query([
             'k' => $this->config->getPublicKey($storeId),
             'u' => $url,
             'b' => $crawlerId,
         ]);
         $headers = $this->authHeaders($this->config->getApiKey($storeId));
-        $headers['Accept'] = 'text/html';
+        $headers['Accept'] = $accept ?? 'text/html';
         if ($etag !== null && $etag !== '') {
             $headers['If-None-Match'] = $etag;
         }
@@ -103,7 +110,8 @@ class Client
      *
      * @param string|null $etag
      * @param int|string|null $storeId
-     * @return array{status: int, body: string|null, etag: string|null, mode: string|null}
+     * @return array{status: int, body: string|null, etag: string|null, mode: string|null,
+     *     content_type: string|null}
      */
     public function fetchLlmsTxt(?string $etag, $storeId = null): array
     {
@@ -233,7 +241,8 @@ class Client
      * @param string $endpoint
      * @param array<string,string> $headers
      * @param int|string|null $storeId
-     * @return array{status: int, body: string|null, etag: string|null, mode: string|null}
+     * @return array{status: int, body: string|null, etag: string|null, mode: string|null,
+     *     content_type: string|null}
      */
     private function request(string $endpoint, array $headers, $storeId = null): array
     {
@@ -250,7 +259,13 @@ class Client
                     . $this->redact($endpoint)
                 );
             }
-            return ['status' => 0, 'body' => null, 'etag' => null, 'mode' => null];
+            return [
+                'status' => 0,
+                'body' => null,
+                'etag' => null,
+                'mode' => null,
+                'content_type' => null,
+            ];
         }
 
         $curl = $this->curlFactory->create();
@@ -265,7 +280,13 @@ class Client
                     'Citecue: transport error for ' . $this->redact($endpoint) . ': ' . $e->getMessage()
                 );
             }
-            return ['status' => 0, 'body' => null, 'etag' => null, 'mode' => null];
+            return [
+                'status' => 0,
+                'body' => null,
+                'etag' => null,
+                'mode' => null,
+                'content_type' => null,
+            ];
         }
 
         $status = (int)$curl->getStatus();
@@ -275,6 +296,7 @@ class Client
             'body' => $status === 200 ? (string)$curl->getBody() : null,
             'etag' => $responseHeaders['etag'] ?? null,
             'mode' => $responseHeaders['x-citecue-mode'] ?? null,
+            'content_type' => $responseHeaders['content-type'] ?? null,
         ];
     }
 
