@@ -20,6 +20,7 @@ class Type extends TagScope
 {
     public const TYPE_IDENTIFIER = 'citecue_delivery';
     public const CACHE_TAG = 'CITECUE_DELIVERY';
+    public const STATE_TAG = 'CITECUE_DELIVERY_STATE';
 
     /**
      * @param FrontendPool $cacheFrontendPool
@@ -27,5 +28,18 @@ class Type extends TagScope
     public function __construct(FrontendPool $cacheFrontendPool)
     {
         parent::__construct($cacheFrontendPool->get(self::TYPE_IDENTIFIER), self::CACHE_TAG);
+    }
+
+    /**
+     * Flushes the delivery state (pages, llms.txt, markers, flags, epochs).
+     *
+     * Used by the admin config-save observer; scoped to delivery state so the
+     * cached crawler registry survives.
+     *
+     * @return bool
+     */
+    public function cleanDeliveryState(): bool
+    {
+        return (bool)$this->clean('matchingTag', [self::STATE_TAG]);
     }
 }

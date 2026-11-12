@@ -28,3 +28,5 @@
 "Request failed — check the network tab / admin session.","Request failed — check the network tab / admin session."
 "Invalid API key — the Citecue API rejected the ck_live_… key.","Invalid API key — the Citecue API rejected the ck_live_… key."
 "Could not reach the Citecue API (timeout, DNS or TLS failure).","Could not reach the Citecue API (timeout, DNS or TLS failure)."
+"The saved Base URL %1 is not on the Allowed API Hosts list for this scope, so the module sends requests to %2 instead. Add the host to Allowed API Hosts and save, or clear the Base URL.","The saved Base URL %1 is not on the Allowed API Hosts list for this scope, so the module sends requests to %2 instead. Add the host to Allowed API Hosts and save, or clear the Base URL."
+"The Base URL %1 was not tested: a Base URL override is only tested together with the API key, and its host must be on the Allowed API Hosts list.","The Base URL %1 was not tested: a Base URL override is only tested together with the API key, and its host must be on the Allowed API Hosts list."

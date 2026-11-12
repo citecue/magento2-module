@@ -151,6 +151,28 @@ class Config
     }
 
     /**
+     * The saved Base URL when it is non-empty yet not allowlisted.
+     *
+     * Runtime requests fall back to the default host in that case; this lets
+     * the admin UI surface what getBaseUrl() silently corrects.
+     *
+     * @param int|string|null $storeId
+     * @return string|null
+     */
+    public function getRejectedBaseUrl($storeId = null): ?string
+    {
+        $url = trim((string)$this->scopeConfig->getValue(
+            self::XML_PATH_BASE_URL,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        ));
+        if ($url !== '' && !$this->isAllowedBaseUrl($url, $storeId)) {
+            return $url;
+        }
+        return null;
+    }
+
+    /**
      * The admin-configured trusted API hosts.
      *
      * The built-in default host is always included. Credentialed delivery
@@ -181,12 +203,49 @@ class Config
         return self::isEndpointAllowed($url, $this->getAllowedHosts($storeId));
     }
 
-    // The three helpers below are deliberately pure, dependency-free statics:
+    // The helpers below are deliberately pure, dependency-free statics:
     // they implement the SSRF host-allowlist rules once, are unit-tested
     // without the framework, and are shared with the save-time base-URL
     // validator. parse_url() is the only stdlib URL parser; no framework
     // equivalent is equally side-effect-free.
     // phpcs:disable Magento2.Functions.StaticFunction, Magento2.Functions.DiscouragedFunction
+
+    /**
+     * Address ranges that may never be a delivery endpoint, as 'address/prefix'.
+     */
+    private const BLOCKED_CIDRS = [
+        // IPv4: "this" network, loopback, RFC1918, CGNAT, link-local.
+        '0.0.0.0/8',
+        '10.0.0.0/8',
+        '100.64.0.0/10',
+        '127.0.0.0/8',
+        '169.254.0.0/16',
+        '172.16.0.0/12',
+        // IPv4: IETF protocol assignments, documentation (TEST-NET-1..3), RFC1918, benchmarking.
+        '192.0.0.0/24',
+        '192.0.2.0/24',
+        '192.168.0.0/16',
+        '198.18.0.0/15',
+        '198.51.100.0/24',
+        '203.0.113.0/24',
+        // IPv4: multicast, reserved.
+        '224.0.0.0/4',
+        '240.0.0.0/4',
+        // IPv6: unspecified, loopback, IPv4-mapped, NAT64, discard, Teredo.
+        '::/128',
+        '::1/128',
+        '::ffff:0:0/96',
+        '64:ff9b::/96',
+        '100::/64',
+        '2001::/32',
+        // IPv6: documentation, 6to4, ULA, link-local, deprecated site-local, multicast.
+        '2001:db8::/32',
+        '2002::/16',
+        'fc00::/7',
+        'fe80::/10',
+        'fec0::/10',
+        'ff00::/8',
+    ];
 
     /**
      * Parses a newline/comma-separated host list into normalized hostnames.
@@ -220,9 +279,11 @@ class Config
      * Whether an absolute URL is a valid, allowed delivery endpoint.
      *
      * It must be https, its host must be in $allowedHosts, and IP-literal
-     * hosts in a private/loopback/link-local/reserved range are always
-     * rejected (blocking the cloud metadata endpoint, localhost-by-IP, etc.)
-     * even if allowlisted. Pure.
+     * hosts inside the explicit BLOCKED_CIDRS denylist (private, loopback,
+     * link-local, CGNAT, documentation, multicast, reserved, ...) are always
+     * rejected even if allowlisted. The denylist is version-independent, so
+     * PHP 8.4 and 8.5 behave identically. Numeric-form hosts such as 127.1,
+     * 2130706433 or 0x7f.0.0.1 are rejected too. Pure.
      *
      * @param string $url
      * @param string[] $allowedHosts
@@ -239,19 +300,71 @@ class Config
             return false;
         }
         $host = strtolower($host);
-        // Hard-block private/reserved IP-literal hosts regardless of the
-        // allowlist. Bracketed IPv6 literals are unwrapped first.
+        // Hard-block blocked IP-literal hosts regardless of the allowlist.
+        // Bracketed IPv6 literals are unwrapped first.
         $ipCandidate = trim($host, '[]');
-        if (filter_var($ipCandidate, FILTER_VALIDATE_IP) !== false
-            && filter_var(
-                $ipCandidate,
-                FILTER_VALIDATE_IP,
-                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-            ) === false
-        ) {
+        if (filter_var($ipCandidate, FILTER_VALIDATE_IP) !== false) {
+            if (self::isBlockedIp($ipCandidate)) {
+                return false;
+            }
+        } elseif (preg_match('/^(0x[0-9a-f]+|[0-9]+)(\.(0x[0-9a-f]+|[0-9]+)){0,3}$/i', $host) === 1) {
+            // Numeric-form hosts (127.1, 2130706433, 0x7f.0.0.1) are not canonical IPs
+            // but resolvers accept them, so they are never allowlistable.
             return false;
         }
         return in_array($host, $allowedHosts, true);
+    }
+
+    /**
+     * Whether an IP literal falls inside a blocked range (unparseable counts as blocked).
+     *
+     * @param string $ip
+     * @return bool
+     */
+    public static function isBlockedIp(string $ip): bool
+    {
+        // filter_var first: inet_pton() warns on malformed input, and anything
+        // that is not a canonical IP literal counts as blocked anyway.
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return true;
+        }
+        $bin = inet_pton($ip);
+        if ($bin === false) {
+            return true;
+        }
+        foreach (self::BLOCKED_CIDRS as $cidr) {
+            if (self::cidrMatch($bin, $cidr)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether a packed address lies in the CIDR range (address families must match).
+     *
+     * @param string $binIp
+     * @param string $cidr
+     * @return bool
+     */
+    private static function cidrMatch(string $binIp, string $cidr): bool
+    {
+        [$net, $bits] = explode('/', $cidr);
+        $binNet = inet_pton($net);
+        if ($binNet === false || strlen($binNet) !== strlen($binIp)) {
+            return false;
+        }
+        $bits = (int)$bits;
+        $bytes = intdiv($bits, 8);
+        if ($bytes > 0 && substr($binIp, 0, $bytes) !== substr($binNet, 0, $bytes)) {
+            return false;
+        }
+        $rem = $bits % 8;
+        if ($rem === 0) {
+            return true;
+        }
+        $mask = (0xFF << (8 - $rem)) & 0xFF;
+        return (ord($binIp[$bytes]) & $mask) === (ord($binNet[$bytes]) & $mask);
     }
 
     /**

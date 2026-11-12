@@ -24,7 +24,7 @@
                        showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>API Key</label>
                     <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <comment><![CDATA[Your organization API key (<code>ck_live_…</code>) from the Citecue dashboard &rarr; Organization &rarr; API keys. Stored encrypted.]]></comment>
+                    <comment><![CDATA[Your organization API key (<code>ck_live_…</code>) from the Citecue dashboard &rarr; API &amp; MCP access. Stored encrypted.]]></comment>
                 </field>
                 <field id="public_key" translate="label comment" type="text" sortOrder="30"
                        showInDefault="1" showInWebsite="1" showInStore="1">

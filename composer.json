@@ -3,7 +3,7 @@
     "description": "Citecue AI delivery middleware for Magento 2 — serves AI-optimized (auto-fixed) page versions to AI bots and crawlers via the Citecue delivery API, and passes every other visitor through untouched.",
     "type": "magento2-module",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "homepage": "https://citecue.com",
     "keywords": [
         "magento2",
@@ -21,8 +21,8 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/henry-mosh/citecue-magento/issues",
-        "source": "https://github.com/henry-mosh/citecue-magento"
+        "issues": "https://github.com/citecue/magento2-module/issues",
+        "source": "https://github.com/citecue/magento2-module"
     },
     "require": {
         "php": "~8.1.0||~8.2.0||~8.3.0||~8.4.0",

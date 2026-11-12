@@ -64,14 +64,52 @@ class ConfigHostTest extends TestCase
 
     public function testAllowsPublicIpLiteralOnlyWhenAllowlisted(): void
     {
-        // 240.0.0.0/4 is reserved (FILTER_FLAG_NO_RES_RANGE) → rejected even
-        // when explicitly allowlisted.
-        $reservedAllowed = Config::normalizeHostList('250.1.2.3');
-        $this->assertFalse(Config::isEndpointAllowed('https://250.1.2.3/api', $reservedAllowed));
         // A public IP that is allowlisted is accepted.
         $publicAllowed = Config::normalizeHostList('8.8.8.8');
         $this->assertTrue(Config::isEndpointAllowed('https://8.8.8.8/api', $publicAllowed));
         // ...but not when it isn't on the list.
+        $this->assertFalse(Config::isEndpointAllowed('https://8.8.4.4/api', Config::normalizeHostList('')));
         $this->assertFalse(Config::isEndpointAllowed('https://8.8.8.8/api', Config::normalizeHostList('')));
+    }
+
+    public function testRejectsBlockedRangesEvenIfAllowlisted(): void
+    {
+        $hosts = [
+            '203.0.113.10', '198.51.100.7', '192.0.2.1', '100.100.100.200', '100.64.0.1', '0.0.0.0',
+            '250.1.2.3', '224.0.0.1', '[::1]', '[fc00::1]', '[fd12:3456::1]', '[fe80::1]', '[fec0::1]',
+            '[2001:db8::1]', '[::ffff:169.254.169.254]', '[2001::1]', '[2002::1]', '[64:ff9b::1]',
+            '[100::1]', '[ff02::1]',
+        ];
+        foreach ($hosts as $host) {
+            $allowed = Config::normalizeHostList($host);
+            $this->assertFalse(Config::isEndpointAllowed('https://' . $host . '/api', $allowed), $host);
+            // Also with the explicit allowlist containing the exact lowercase host.
+            $this->assertFalse(Config::isEndpointAllowed('https://' . $host . '/api', [$host]), $host);
+        }
+    }
+
+    public function testRejectsNumericFormHostsEvenIfAllowlisted(): void
+    {
+        foreach (['127.1', '2130706433', '0x7f.0.0.1'] as $host) {
+            $this->assertFalse(Config::isEndpointAllowed('https://' . $host . '/api', [$host]), $host);
+        }
+    }
+
+    public function testAllowsPublicBoundaryAddressesWhenAllowlisted(): void
+    {
+        foreach (['8.8.8.8', '100.63.255.255', '100.128.0.1', '198.17.255.255', '[2606:4700::1111]'] as $host) {
+            $this->assertTrue(Config::isEndpointAllowed('https://' . $host . '/api', [$host]), $host);
+        }
+    }
+
+    public function testIsBlockedIp(): void
+    {
+        foreach (['100.100.100.200', '203.0.113.10', 'fe80::1', '::ffff:169.254.169.254'] as $ip) {
+            $this->assertTrue(Config::isBlockedIp($ip), $ip);
+        }
+        foreach (['8.8.8.8', '2606:4700::1111', '1.1.1.1'] as $ip) {
+            $this->assertFalse(Config::isBlockedIp($ip), $ip);
+        }
+        $this->assertTrue(Config::isBlockedIp('not-an-ip'));
     }
 }

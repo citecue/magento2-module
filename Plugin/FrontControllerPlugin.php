@@ -75,13 +75,15 @@ class FrontControllerPlugin
             if ($request instanceof HttpRequest) {
                 $page = $this->deliveryService->getCrawlerPage($request);
                 if ($page !== null) {
+                    $isHead = strtoupper($request->getMethod()) === 'HEAD';
                     $result = $this->rawFactory->create();
                     $result->setHttpResponseCode(200);
-                    $result->setHeader('Content-Type', 'text/html; charset=UTF-8', true);
+                    $result->setHeader('Content-Type', $page['content_type'] ?? 'text/html; charset=UTF-8', true);
+                    $result->setHeader('Vary', 'Accept', true);
                     $result->setHeader('Cache-Control', 'private, no-store', true);
                     $result->setHeader('X-Citecue-Mode', $page['mode'], true);
                     $result->setHeader('X-Citecue-Delivery', 'magento', true);
-                    $result->setContents($page['content']);
+                    $result->setContents($isHead ? '' : $page['content']);
                     return $result;
                 }
             }

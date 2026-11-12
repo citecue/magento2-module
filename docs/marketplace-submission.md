@@ -7,7 +7,7 @@ do.
 ## Already done (in this repo)
 
 - [x] `composer.json` complete for Marketplace: lowercase `citecue/module-delivery`,
-      `type: magento2-module`, `version: 1.0.0` (required for ZIP submissions),
+      `type: magento2-module`, `version: 1.1.0` (required for ZIP submissions),
       MIT license, authors/support/homepage, PHP `8.1–8.4`, Magento 2.4.4+ deps.
 - [x] `registration.php` + `etc/module.xml` consistent (`Citecue_Delivery`).
 - [x] **Magento Coding Standard: 0 errors, 0 warnings** (`vendor/bin/phpcs
@@ -21,7 +21,7 @@ do.
       form key), escaped templates, encrypted key storage, SSRF host
       allowlist — the security areas EQP reviews manually.
 - [x] Submission ZIP built and structurally validated:
-      `dist/citecue_module-delivery-1.0.0.zip`
+      `dist/citecue_module-delivery-1.1.0.zip`
       (composer.json + registration.php at ZIP root, no VCS/dev files).
 
 Rebuild the ZIP after any change:
@@ -31,7 +31,7 @@ cd /path/to/module
 rm -rf /tmp/citecue-pkg && mkdir -p /tmp/citecue-pkg
 rsync -a --exclude='.git*' --exclude='docs' --exclude='dist' \
       --exclude='phpcs.xml.dist' --exclude='.DS_Store' ./ /tmp/citecue-pkg/
-cd /tmp/citecue-pkg && zip -rq citecue_module-delivery-1.0.0.zip . -x '.*'
+cd /tmp/citecue-pkg && zip -rq citecue_module-delivery-1.1.0.zip . -x '.*'
 ```
 
 (The `rm -rf` matters: reusing a stale staging directory would carry files
@@ -49,7 +49,7 @@ you have since deleted from the module into the new ZIP.)
 2. **Create the product** — "Extension" listing, platform Magento Open
    Source / Adobe Commerce, versions **2.4.4–2.4.8** (tick the ones you
    support), PHP 8.1–8.4.
-3. **Upload the package** — `dist/citecue_module-delivery-1.0.0.zip`.
+3. **Upload the package** — `dist/citecue_module-delivery-1.1.0.zip`.
    The portal runs the EQP automated checks (malware scan, coding standard,
    installability, plagiarism/copy-paste) and then manual QA.
 4. **Marketing content** (prepare before submitting; reviewed separately):
@@ -64,10 +64,10 @@ you have since deleted from the module into the new ZIP.)
    - **User Guide**: export `docs/user-guide.md` to PDF (or host it and give
      the URL).
    - **Installation Guide**: export `docs/installation-guide.md` to PDF or URL.
-   - **Release notes**: paste the 1.0.0 section from `CHANGELOG.md`.
+   - **Release notes**: paste the 1.1.0 section from `CHANGELOG.md`.
    - **Categories**: e.g. Marketing → SEO/SEM; Site Optimization.
    - **Support**: email/URL + link to
-     https://github.com/henry-mosh/citecue-magento/issues.
+     https://github.com/citecue/magento2-module/issues.
    - **Pricing**: free or paid (+ optional support/installation services).
 5. **Submit for review** and watch the portal inbox — reviewers typically
    respond within a few business days; failed checks come back with a report
