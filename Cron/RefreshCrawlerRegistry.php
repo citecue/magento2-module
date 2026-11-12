@@ -69,6 +69,8 @@ class RefreshCrawlerRegistry
     }
 
     /**
+     * Refreshes the crawler registry from the keyless delivery API feed.
+     *
      * @return void
      */
     public function execute(): void

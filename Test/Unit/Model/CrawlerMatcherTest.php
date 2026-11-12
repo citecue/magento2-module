@@ -21,9 +21,19 @@ class CrawlerMatcherTest extends TestCase
         ['id' => 'perplexity-user', 'token' => 'Perplexity-User', 'fetchesPages' => true],
     ];
 
+    /**
+     * @var CrawlerMatcher
+     */
+    private $matcher;
+
+    protected function setUp(): void
+    {
+        $this->matcher = new CrawlerMatcher();
+    }
+
     public function testMatchesKnownCrawlerCaseInsensitively(): void
     {
-        $match = CrawlerMatcher::matchServable(
+        $match = $this->matcher->matchServable(
             self::CRAWLERS,
             'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; gptbot/1.2; +https://openai.com/gptbot'
         );
@@ -34,7 +44,7 @@ class CrawlerMatcherTest extends TestCase
     public function testLongestTokenWins(): void
     {
         // UA contains both "GPTBot" and "ChatGPT-User"-adjacent tokens; the longer token must win.
-        $match = CrawlerMatcher::matchServable(
+        $match = $this->matcher->matchServable(
             self::CRAWLERS,
             'Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot) GPTBot'
         );
@@ -44,24 +54,25 @@ class CrawlerMatcherTest extends TestCase
 
     public function testRobotsOnlyTokenIsNeverServable(): void
     {
-        $this->assertNull(CrawlerMatcher::matchServable(self::CRAWLERS, 'Google-Extended'));
+        $this->assertNull($this->matcher->matchServable(self::CRAWLERS, 'Google-Extended'));
         // ...but plain match() still sees it (upstream parity).
-        $match = CrawlerMatcher::match(self::CRAWLERS, 'Google-Extended');
+        $match = $this->matcher->match(self::CRAWLERS, 'Google-Extended');
         $this->assertNotNull($match);
         $this->assertSame('google-extended', $match['id']);
     }
 
     public function testRegularBrowserDoesNotMatch(): void
     {
-        $this->assertNull(CrawlerMatcher::matchServable(
+        $this->assertNull($this->matcher->matchServable(
             self::CRAWLERS,
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+            . 'Chrome/126.0 Safari/537.36'
         ));
     }
 
     public function testGooglebotDoesNotMatch(): void
     {
-        $this->assertNull(CrawlerMatcher::matchServable(
+        $this->assertNull($this->matcher->matchServable(
             self::CRAWLERS,
             'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
         ));
@@ -69,7 +80,7 @@ class CrawlerMatcherTest extends TestCase
 
     public function testEmptyAndNullUserAgent(): void
     {
-        $this->assertNull(CrawlerMatcher::matchServable(self::CRAWLERS, null));
-        $this->assertNull(CrawlerMatcher::matchServable(self::CRAWLERS, ''));
+        $this->assertNull($this->matcher->matchServable(self::CRAWLERS, null));
+        $this->assertNull($this->matcher->matchServable(self::CRAWLERS, ''));
     }
 }

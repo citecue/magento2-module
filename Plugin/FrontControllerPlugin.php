@@ -58,6 +58,8 @@ class FrontControllerPlugin
     }
 
     /**
+     * Serves the Citecue-optimized page to a detected AI crawler, else proceeds.
+     *
      * @param FrontControllerInterface $subject
      * @param callable $proceed
      * @param RequestInterface $request

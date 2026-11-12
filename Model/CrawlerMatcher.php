@@ -21,14 +21,15 @@ namespace Citecue\Delivery\Model;
 class CrawlerMatcher
 {
     /**
-     * Longest-token-wins match over the full registry (including
-     * non-fetching tokens, same as upstream matchDeliveryCrawler).
+     * Longest-token-wins match over the full registry.
      *
-     * @param array<int, array{id: string, token: string, fetchesPages: bool}> $crawlers
+     * Includes non-fetching tokens, same as upstream matchDeliveryCrawler.
+     *
+     * @param array<int,array{id:string,token:string,fetchesPages:bool}> $crawlers
      * @param string|null $userAgent
-     * @return array{id: string, token: string, fetchesPages: bool}|null
+     * @return array{id:string,token:string,fetchesPages:bool}|null
      */
-    public static function match(array $crawlers, ?string $userAgent): ?array
+    public function match(array $crawlers, ?string $userAgent): ?array
     {
         if ($userAgent === null || $userAgent === '') {
             return null;
@@ -49,15 +50,16 @@ class CrawlerMatcher
 
     /**
      * The serve decision: a known crawler that actually fetches pages.
+     *
      * Mirrors upstream shouldServeDeliveryCrawler().
      *
-     * @param array<int, array{id: string, token: string, fetchesPages: bool}> $crawlers
+     * @param array<int,array{id:string,token:string,fetchesPages:bool}> $crawlers
      * @param string|null $userAgent
-     * @return array{id: string, token: string, fetchesPages: bool}|null
+     * @return array{id:string,token:string,fetchesPages:bool}|null
      */
-    public static function matchServable(array $crawlers, ?string $userAgent): ?array
+    public function matchServable(array $crawlers, ?string $userAgent): ?array
     {
-        $match = self::match($crawlers, $userAgent);
+        $match = $this->match($crawlers, $userAgent);
         return ($match !== null && !empty($match['fetchesPages'])) ? $match : null;
     }
 }

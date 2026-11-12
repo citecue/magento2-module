@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<ruleset name="CitecueDelivery">
+    <description>Coding standard for the Citecue_Delivery module (Marketplace parity).</description>
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php,phtml,xml"/>
+    <file>.</file>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <!-- Fail on warnings too: the codebase is kept at 0/0. -->
+    <rule ref="Magento2"/>
+</ruleset>

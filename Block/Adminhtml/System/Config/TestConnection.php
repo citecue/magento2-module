@@ -7,7 +7,6 @@ declare(strict_types=1);
 
 namespace Citecue\Delivery\Block\Adminhtml\System\Config;
 
-use Magento\Backend\Block\Template\Context;
 use Magento\Config\Block\System\Config\Form\Field;
 use Magento\Framework\Data\Form\Element\AbstractElement;
 
@@ -23,15 +22,6 @@ class TestConnection extends Field
     protected $_template = 'Citecue_Delivery::system/config/test_connection.phtml';
 
     /**
-     * @param Context $context
-     * @param array $data
-     */
-    public function __construct(Context $context, array $data = [])
-    {
-        parent::__construct($context, $data);
-    }
-
-    /**
      * Drop scope label/inheritance checkbox for the button row.
      *
      * @param AbstractElement $element
@@ -44,6 +34,8 @@ class TestConnection extends Field
     }
 
     /**
+     * Renders the button template as the element's HTML.
+     *
      * @param AbstractElement $element
      * @return string
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
@@ -54,6 +46,8 @@ class TestConnection extends Field
     }
 
     /**
+     * The admin URL of the Test Connection AJAX endpoint.
+     *
      * @return string
      */
     public function getAjaxUrl(): string

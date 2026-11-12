@@ -58,6 +58,8 @@ class BaseUrl extends Value
     }
 
     /**
+     * Validates the base URL against the https + allowed-host rules on save.
+     *
      * @return $this
      * @throws LocalizedException
      */

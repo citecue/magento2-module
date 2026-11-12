@@ -6,12 +6,19 @@
  * @var \Citecue\Delivery\Block\Adminhtml\System\Config\TestConnection $block
  * @var \Magento\Framework\Escaper $escaper
  */
+
+$storeParam = $block->getRequest()->getParam('store');
+$websiteParam = $block->getRequest()->getParam('website');
 ?>
 <button type="button" id="citecue_test_connection_btn" class="action-default scalable">
     <span><?= $escaper->escapeHtml(__('Test Connection')) ?></span>
 </button>
 <p class="note">
-    <span><?= $escaper->escapeHtml(__('Verifies the API key against the Citecue API and lists your projects with their public keys.')) ?></span>
+    <span>
+        <?= $escaper->escapeHtml(
+            __('Verifies the API key against the Citecue API and lists your projects with their public keys.')
+        ) ?>
+    </span>
 </p>
 <div id="citecue_test_connection_result" style="margin-top:10px;"></div>
 <script>
@@ -38,14 +45,16 @@ require(['jquery'], function ($) {
                 api_key: $('#citecue_delivery_general_api_key').val() || '',
                 public_key: $('#citecue_delivery_general_public_key').val() || '',
                 base_url: $('#citecue_delivery_advanced_base_url').val() || '',
-                store: '<?= $block->getRequest()->getParam('store') !== null ? (int)$block->getRequest()->getParam('store') : '' ?>',
-                website: '<?= $block->getRequest()->getParam('website') !== null ? (int)$block->getRequest()->getParam('website') : '' ?>'
+                store: '<?= $storeParam !== null ? (int)$storeParam : '' ?>',
+                website: '<?= $websiteParam !== null ? (int)$websiteParam : '' ?>'
             }
         }).done(function (response) {
             if (!response || !response.success) {
                 $result.html(
                     '<div class="message message-error error"><div>'
-                    + esc(response && response.message ? response.message : '<?= $escaper->escapeJs(__('Connection failed.')) ?>')
+                    + esc(response && response.message
+                        ? response.message
+                        : '<?= $escaper->escapeJs(__('Connection failed.')) ?>')
                     + '</div></div>'
                 );
                 return;
@@ -72,7 +81,9 @@ require(['jquery'], function ($) {
                             : '<?= $escaper->escapeJs(__('Off')) ?>') + '</td>'
                         + '<td>' + (project.current
                             ? '<strong><?= $escaper->escapeJs(__('Currently selected')) ?></strong>'
-                            : '<button type="button" class="action-secondary citecue-use-key" data-key="' + esc(project.publicKey) + '"><span><?= $escaper->escapeJs(__('Use this key')) ?></span></button>')
+                            : '<button type="button" class="action-secondary citecue-use-key" data-key="'
+                                + esc(project.publicKey) + '">'
+                                + '<span><?= $escaper->escapeJs(__('Use this key')) ?></span></button>')
                         + '</td>'
                         + '</tr>';
                 });
@@ -81,11 +92,15 @@ require(['jquery'], function ($) {
             $result.html(html);
             $result.find('.citecue-use-key').on('click', function () {
                 $('#citecue_delivery_general_public_key').val($(this).data('key')).trigger('change');
-                $(this).replaceWith('<strong><?= $escaper->escapeJs(__('Selected — save the configuration')) ?></strong>');
+                $(this).replaceWith(
+                    '<strong><?= $escaper->escapeJs(__('Selected — save the configuration')) ?></strong>'
+                );
             });
         }).fail(function () {
             $result.html(
-                '<div class="message message-error error"><div><?= $escaper->escapeJs(__('Request failed — check the network tab / admin session.')) ?></div></div>'
+                '<div class="message message-error error"><div>'
+                + '<?= $escaper->escapeJs(__('Request failed — check the network tab / admin session.')) ?>'
+                + '</div></div>'
             );
         }).always(function () {
             $btn.prop('disabled', false);

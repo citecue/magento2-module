@@ -68,6 +68,11 @@ class CrawlerRegistry
     private $json;
 
     /**
+     * @var CrawlerMatcher
+     */
+    private $crawlerMatcher;
+
+    /**
      * @var LoggerInterface
      */
     private $logger;
@@ -75,30 +80,35 @@ class CrawlerRegistry
     /**
      * Per-request memoization of the effective crawler list.
      *
-     * @var array<int, array{id: string, token: string, fetchesPages: bool}>|null
+     * @var array<int,array{id:string,token:string,fetchesPages:bool}>|null
      */
     private $crawlers = null;
 
     /**
      * @param DeliveryCache $cache
      * @param Json $json
+     * @param CrawlerMatcher $crawlerMatcher
      * @param LoggerInterface $logger
      */
     public function __construct(
         DeliveryCache $cache,
         Json $json,
+        CrawlerMatcher $crawlerMatcher,
         LoggerInterface $logger
     ) {
         $this->cache = $cache;
         $this->json = $json;
+        $this->crawlerMatcher = $crawlerMatcher;
         $this->logger = $logger;
     }
 
     /**
-     * The effective crawler list: the cached remote feed when present and
-     * valid, otherwise the bundled snapshot.
+     * Returns the effective crawler list.
      *
-     * @return array<int, array{id: string, token: string, fetchesPages: bool}>
+     * That is the cached remote feed when present and valid, otherwise the
+     * bundled snapshot.
+     *
+     * @return array<int,array{id:string,token:string,fetchesPages:bool}>
      */
     public function getCrawlers(): array
     {
@@ -122,21 +132,23 @@ class CrawlerRegistry
     }
 
     /**
-     * Matches a UA against the effective registry; returns the crawler to
-     * serve, or null when the visitor is not a servable AI crawler.
+     * Matches a User-Agent against the effective registry.
+     *
+     * Returns the crawler to serve, or null when the visitor is not a
+     * servable AI crawler.
      *
      * @param string|null $userAgent
-     * @return array{id: string, token: string, fetchesPages: bool}|null
+     * @return array{id:string,token:string,fetchesPages:bool}|null
      */
     public function matchServable(?string $userAgent): ?array
     {
-        return CrawlerMatcher::matchServable($this->getCrawlers(), $userAgent);
+        return $this->crawlerMatcher->matchServable($this->getCrawlers(), $userAgent);
     }
 
     /**
      * Persists a freshly fetched remote registry (called by the cron job).
      *
-     * @param array<int, mixed> $crawlers
+     * @param array<int,mixed> $crawlers
      * @param int $version
      * @return bool whether the payload was valid and stored
      */
